@@ -9,8 +9,10 @@ public class Memory {
 	
 	private Globals globals;
 
-	public Memory(Globals globals) {
+	public Memory(Globals globals, int size, byte[] rom) {
 		this.globals = globals;
+		this.mem = new byte[size];
+		this.rom = rom;
 	}
 
 	public byte read(int addr) {
@@ -118,5 +120,9 @@ public class Memory {
 	
 	public byte incRaw(int addr) {
 		return mem[addr]++;
+	}
+	
+	public byte[] raw() {
+		return mem;
 	}
 }

@@ -1,9 +1,17 @@
 package com.mrh0.gbemu;
 
+import com.mrh0.gbemu.cpu.CPU;
+import com.mrh0.gbemu.cpu.Globals;
+import com.mrh0.gbemu.cpu.memory.Memory;
+
 public class Main {
 
 	public static void main(String[] args) {
-		genbitsetres();
+		byte[] rom = new byte[0];
+		
+		Globals globals = new Globals();
+		Memory memory = new Memory(globals, 0x1000, rom);
+		CPU cpu = new CPU(memory, globals);
 	}
 
 	private static void genbitsetres() {

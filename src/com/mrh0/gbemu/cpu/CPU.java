@@ -45,7 +45,16 @@ public class CPU {
 
 	// Main:
 
-	public void advance() {
+	private byte[] parseBootcode() {
+		String[] splt = bootcode.split(" ");
+		byte[] bytes = new byte[splt.length];
+		for (int i = 0; i < splt.length; i++) {
+			bytes[i] = (byte) Integer.parseInt(splt[i]);
+		}
+		return bytes;
+	}
+
+	public int advance() {
 		int cycles = 4;
 
 		if (!halted)
@@ -67,6 +76,31 @@ public class CPU {
 				}
 			}
 		}
+
+		if (ime) {
+			// if enabled and flag set
+			var i = mem.raw()[0xFF0F] & mem.raw()[0xFFFF];
+
+			if (bool(i & (1 << 0))) {
+				mem.raw()[0xFF0F] &= ~(1 << 0);
+				cycles += interrupt(0x40);
+			} else if (bool(i & (1 << 1))) {
+				mem.raw()[0xFF0F] &= ~(1 << 1);
+				cycles += interrupt(0x48);
+			} else if (bool(i & (1 << 2))) {
+				mem.raw()[0xFF0F] &= ~(1 << 2);
+				cycles += interrupt(0x50);
+			} else if (bool(i & (1 << 3))) {
+				mem.raw()[0xFF0F] &= ~(1 << 3);
+				cycles += interrupt(0x58);
+			} else if (bool(i & (1 << 4))) {
+				mem.raw()[0xFF0F] &= ~(1 << 4);
+				cycles += interrupt(0x60);
+			}
+
+		} // else cpu_halted=false
+
+		return cycles;
 	}
 
 	public int operation(int opcode) {
@@ -1901,5 +1935,16 @@ public class CPU {
 		reg[r] &= b;
 		pc++;
 		return 8;
+	}
+
+	// Interrupt:
+
+	private int interrupt(int npc) {
+		halted = false;
+		mem.write16(sp -= 2, (byte) (pc >> 8), (byte) (pc & 0xFF));
+		pc = npc;
+		ime = false;
+
+		return 20;
 	}
 }
