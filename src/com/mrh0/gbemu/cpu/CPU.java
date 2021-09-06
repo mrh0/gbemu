@@ -33,11 +33,7 @@ public class CPU {
 	private final byte H = 0b100;
 	private final byte L = 0b101;
 
-	private final byte HL = 0b110;
-
-	private final int BC = 258;
-	private final int DE = 259;
-	private final int SPr = 260;
+	private final String bootcode = "31 FE FF AF 21 FF 9F 32 CB 7C 20 FB 21 26 FF 0E 11 3E 80 32 E2 0C 3E F3 E2 32 3E 77 77 3E FC E0 47 11 A8 00 21 10 80 1A CD 95 00 CD 96 00 13 7B FE 34 20 F3 11 D8 00 06 08 1A 13 22 23 05 20 F9 3E 19 EA 10 99 21 2F 99 0E 0C 3D 28 08 32 0D 20 F9 2E 0F 18 F3 67 3E 64 57 E0 42 3E 91 E0 40 04 1E 02 0E 0C F0 44 FE 90 20 FA 0D 20 F7 1D 20 F2 0E 13 24 7C 1E 83 FE 62 28 06 1E C1 FE 64 20 06 7B E2 0C 3E 87 E2 F0 42 90 E0 42 15 20 D2 05 20 4F 16 20 18 CB 4F 06 04 C5 CB 11 17 C1 CB 11 17 05 20 F5 22 23 22 23 C9 00 00 00 0D 00 09 11 09 89 39 08 C9 00 0B 00 03 00 0C CC CC 00 0F 00 00 00 00 EC CC EC CC DD DD 99 99 98 89 EE FB 67 63 6E 0E CC DD 1F 9F 88 88 00 00 00 00 00 00 00 00 21 A8 00 11 A8 00 1A 13 BE 20 FE 23 7D FE 34 20 F5 06 19 78 86 23 05 20 FB 86 20 FE 3E 01 E0 50";
 
 	private enum ALUOP {
 		ADD, ADC, SUB, SBC, AND, OR, XOR, CP
@@ -74,353 +70,1066 @@ public class CPU {
 	}
 
 	public int operation(int opcode) {
-		switch(opcode) {
-			case 0x00: return nop();
-			case 0x01: return ld16I(B,C);
-			case 0x02: return ldToMem(B,C,A);
-			case 0x03: return inc16(B,C);
-			case 0x04: return inc(B);
-			case 0x05: return dec(B);
-			case 0x06: return ldI(B);
-			case 0x07: return shiftFast(SHIFTOP.RLC, A); //rlca
-			case 0x08: return ld_imm_sp(); //LD   (nn),SP
-			case 0x09: return addHL(B,C);
-			case 0x0A: return ldFromMem(A, B, C);
-			case 0x0B: return dec16(B,C);
-			case 0x0C: return inc(C);
-			case 0x0D: return dec(C);
-			case 0x0E: return ldI(C);
-			case 0x0F: return shiftFast(SHIFTOP.RRC, A);
-	
-	
-			case 0x10: return stop();
-			case 0x11: return ld16I(D,E);
-			case 0x12: return ldToMem(D,E,A);
-			case 0x13: return inc16(D,E);
-			case 0x14: return inc(D);
-			case 0x15: return dec(D);
-			case 0x16: return ldI(D);
-			case 0x17: return shiftFast(SHIFTOP.RL, A);
-			case 0x18: return jr();
-			case 0x19: return addHL(D,E); //ADD HL, DE
-			case 0x1A: return ldFromMem(A, D, E);
-			case 0x1B: return dec16(D,E);
-			case 0x1C: return inc(E);
-			case 0x1D: return dec(E);
-			case 0x1E: return ldI(E);
-			case 0x1F: return shiftFast(SHIFTOP.RR, A);
-	
-			case 0x20: return jrNZ();
-			case 0x21: return ld16I(H,L);
-			case 0x22: return ldi();
-			case 0x23: return inc16(H,L);
-			case 0x24: return inc(H);
-			case 0x25: return dec(H);
-			case 0x26: return ldI(H);
-			case 0x27: return daa();
-			case 0x28: return jrZ();
-			case 0x29: return addHL(H,L);
-			case 0x2A: return ldi();
-			case 0x2B: return dec16(H,L);
-			case 0x2C: return inc(L);
-			case 0x2D: return dec(L);
-			case 0x2E: return ldI(L);
-			case 0x2F: return cpl();
-	
-			case 0x30: return jrNC();
-			case 0x31: return ld16sp();
-			case 0x32: return ldd();
-			case 0x33: return inc16();
-			case 0x34: return inc(HL);
-			case 0x35: return dec(HL);
-			case 0x36: return ldToMem(A, H, L); //was ldToMem(H,L);
-			case 0x37: return scf();
-			case 0x38: return jrC();
-			case 0x39: return addHL();
-			case 0x3A: return ldd();
-			case 0x3B: return dec16();
-			case 0x3C: return inc(A);
-			case 0x3D: return dec(A);
-			case 0x3E: return ldI(A);
-			case 0x3F: return ccf();
-	
-	
-			case 0x40: return ld(B,B);
-			case 0x41: return ld(B,C);
-			case 0x42: return ld(B,D);
-			case 0x43: return ld(B,E);
-			case 0x44: return ld(B,H);
-			case 0x45: return ld(B,L);
-			case 0x46: return ldFromMem(B, H, L);
-			case 0x47: return ld(B,A);
-	
-			case 0x48: return ld(C,B);
-			case 0x49: return ld(C,C);
-			case 0x4A: return ld(C,D);
-			case 0x4B: return ld(C,E);
-			case 0x4C: return ld(C,H);
-			case 0x4D: return ld(C,L);
-			case 0x4E: return ldFromMem(C, H, L);
-			case 0x4F: return ld(C,A);
-	
-			case 0x50: return ld(D,B);
-			case 0x51: return ld(D,C);
-			case 0x52: return ld(D,D);
-			case 0x53: return ld(D,E);
-			case 0x54: return ld(D,H);
-			case 0x55: return ld(D,L);
-			case 0x56: return ldFromMem(D, H, L);
-			case 0x57: return ld(D,A);
-	
-			case 0x58: return ld(E,B);
-			case 0x59: return ld(E,C);
-			case 0x5A: return ld(E,D);
-			case 0x5B: return ld(E,E);
-			case 0x5C: return ld(E,H);
-			case 0x5D: return ld(E,L);
-			case 0x5E: return ldFromMem(E, H, L);
-			case 0x5F: return ld(E,A);
-	
-			case 0x60: return ld(H,B);
-			case 0x61: return ld(H,C);
-			case 0x62: return ld(H,D);
-			case 0x63: return ld(H,E);
-			case 0x64: return ld(H,H);
-			case 0x65: return ld(H,L);
-			case 0x66: return ldFromMem(H, H, L);
-			case 0x67: return ld(H,A);
-	
-			case 0x68: return ld(L,B);
-			case 0x69: return ld(L,C);
-			case 0x6A: return ld(L,D);
-			case 0x6B: return ld(L,E);
-			case 0x6C: return ld(L,H);
-			case 0x6D: return ld(L,L);
-			case 0x6E: return ldFromMem(L, H, L);
-			case 0x6F: return ld(L,A);
-	
-			case 0x70: return ldToMem(H,L, B);
-			case 0x71: return ldToMem(H,L, C);
-			case 0x72: return ldToMem(H,L, D);
-			case 0x73: return ldToMem(H,L, E);
-			case 0x74: return ldToMem(H,L, H);
-			case 0x75: return ldToMem(H,L, L);
-			case 0x76: return halt();
-			case 0x77: return ldToMem(H,L, A);
-	
-			case 0x78: return ld(A,B);
-			case 0x79: return ld(A,C);
-			case 0x7A: return ld(A,D);
-			case 0x7B: return ld(A,E);
-			case 0x7C: return ld(A,H);
-			case 0x7D: return ld(A,L);
-			case 0x7E: return ldFromMem(A, H, L );
-			case 0x7F: return ld(A,A);
-	
-			case 0x80: return ALU(ALUOP.ADD,A,B);
-			case 0x81: return ALU(ALUOP.ADD,A,C);
-			case 0x82: return ALU(ALUOP.ADD,A,D);
-			case 0x83: return ALU(ALUOP.ADD,A,E);
-			case 0x84: return ALU(ALUOP.ADD,A,H);
-			case 0x85: return ALU(ALUOP.ADD,A,L);
-			case 0x86: return ALU(ALUOP.ADD);
-			case 0x87: return ALU(ALUOP.ADD,A,A);
-	
-			case 0x88: return ALU(ALUOP.ADC,A,B);
-			case 0x89: return ALU(ALUOP.ADC,A,C);
-			case 0x8A: return ALU(ALUOP.ADC,A,D);
-			case 0x8B: return ALU(ALUOP.ADC,A,E);
-			case 0x8C: return ALU(ALUOP.ADC,A,H);
-			case 0x8D: return ALU(ALUOP.ADC,A,L);
-			case 0x8E: return ALU(ALUOP.ADC);
-			case 0x8F: return ALU(ALUOP.ADC,A,A);
-	
-			case 0x90: return ALU(ALUOP.SUB,A,B);
-			case 0x91: return ALU(ALUOP.SUB,A,C);
-			case 0x92: return ALU(ALUOP.SUB,A,D);
-			case 0x93: return ALU(ALUOP.SUB,A,E);
-			case 0x94: return ALU(ALUOP.SUB,A,H);
-			case 0x95: return ALU(ALUOP.SUB,A,L);
-			case 0x96: return ALU(ALUOP.SUB);
-			case 0x97: return ALU(ALUOP.SUB,A,A);
-	
-			case 0x98: return ALU(ALUOP.SBC,A,B);
-			case 0x99: return ALU(ALUOP.SBC,A,C);
-			case 0x9A: return ALU(ALUOP.SBC,A,D);
-			case 0x9B: return ALU(ALUOP.SBC,A,E);
-			case 0x9C: return ALU(ALUOP.SBC,A,H);
-			case 0x9D: return ALU(ALUOP.SBC,A,L);
-			case 0x9E: return ALU(ALUOP.SBC);
-			case 0x9F: return ALU(ALUOP.SBC,A,A);
-	
-			case 0xA0: return ALU(ALUOP.AND,A,B);
-			case 0xA1: return ALU(ALUOP.AND,A,C);
-			case 0xA2: return ALU(ALUOP.AND,A,D);
-			case 0xA3: return ALU(ALUOP.AND,A,E);
-			case 0xA4: return ALU(ALUOP.AND,A,H);
-			case 0xA5: return ALU(ALUOP.AND,A,L);
-			case 0xA6: return ALU(ALUOP.AND);
-			case 0xA7: return ALU(ALUOP.AND,A,A);
-	
-			case 0xA8: return ALU(ALUOP.XOR,A,B);
-			case 0xA9: return ALU(ALUOP.XOR,A,C);
-			case 0xAA: return ALU(ALUOP.XOR,A,D);
-			case 0xAB: return ALU(ALUOP.XOR,A,E);
-			case 0xAC: return ALU(ALUOP.XOR,A,H);
-			case 0xAD: return ALU(ALUOP.XOR,A,L);
-			case 0xAE: return ALU(ALUOP.XOR);
-			case 0xAF: return ALU(ALUOP.XOR,A,A);
-	
-			case 0xB0: return ALU(ALUOP.OR,A,B);
-			case 0xB1: return ALU(ALUOP.OR,A,C);
-			case 0xB2: return ALU(ALUOP.OR,A,D);
-			case 0xB3: return ALU(ALUOP.OR,A,E);
-			case 0xB4: return ALU(ALUOP.OR,A,H);
-			case 0xB5: return ALU(ALUOP.OR,A,L);
-			case 0xB6: return ALU(ALUOP.OR);
-			case 0xB7: return ALU(ALUOP.OR,A,A);
-	
-			case 0xB8: return ALU(ALUOP.CP,A,B);
-			case 0xB9: return ALU(ALUOP.CP,A,C);
-			case 0xBA: return ALU(ALUOP.CP,A,D);
-			case 0xBB: return ALU(ALUOP.CP,A,E);
-			case 0xBC: return ALU(ALUOP.CP,A,H);
-			case 0xBD: return ALU(ALUOP.CP,A,L);
-			case 0xBE: return ALU(ALUOP.CP,A, HL );
-			case 0xBF: return ALU(ALUOP.CP,A,A);
-	
-			case 0xC0: return retNZ();
-			case 0xC1: return pop(B,C);
-			case 0xC2: return jpNZ();
-			case 0xC3: return jp();
-			case 0xC4: return callNZ();
-			case 0xC5: return push(B,C);
-			case 0xC6: return ALUI(ALUOP.ADD);
-			case 0xC7: return rst(0x00);
-			case 0xC8: return retZ();
-			case 0xC9: return ret();
-			case 0xCA: return jpZ();
-			case 0xCB: return CBop(mem.read(++pc));
-			case 0xCC: return callZ();
-			case 0xCD: return call();
-			case 0xCE: return ALUI(ALUOP.ADC);
-			case 0xCF: return rst(0x08);
-	
-			case 0xD0: return retNC();
-			case 0xD1: return pop(D,E);
-			case 0xD2: return jpNC();
-			case 0xD3: return unused();
-			case 0xD4: return callNC();
-			case 0xD5: return push(D,E);
-			case 0xD6: return ALUI(ALUOP.SUB);
-			case 0xD7: return rst(0x10);
-			case 0xD8: return retC();
-			case 0xD9: return reti(); //RETI
-			case 0xDA: return jpC();
-			case 0xDB: return unused();
-			case 0xDC: return callC();
-			case 0xDD: return unused();
-			case 0xDE: return ALUI(ALUOP.SBC);
-			case 0xDF: return rst(0x18);
-	
-			case 0xE0: return ldh(); //LD   (FF00+n),A
-			case 0xE1: return pop(H,L);
-			case 0xE2: return ldc(); //LD   (FF00+C),A
-			case 0xE3: return unused();
-			case 0xE4: return unused();
-			case 0xE5: return push(H,L);
-			case 0xE6: return ALUI(ALUOP.AND);
-			case 0xE7: return rst(0x20);
-			case 0xE8: return add_sp_n(); //ADD  SP,dd
-			case 0xE9: return jpHL();
-			case 0xEA: return ldToMemI(A); //LD   (nn),A
-			case 0xEB: return unused();
-			case 0xEC: return unused();
-			case 0xED: return unused();
-			case 0xEE: return ALUI(ALUOP.XOR);
-			case 0xEF: return rst(0x28);
-	
-			case 0xF0: return ldhA(); //LD   A,(FF00+n)
-			case 0xF1: return pop();
-			case 0xF2: return ldcA(); //LD   A,(FF00+C)
-			case 0xF3: return di();
-			case 0xF4: return unused();
-			case 0xF5: return push();
-			case 0xF6: return ALUI(ALUOP.OR);
-			case 0xF7: return rst(0x30);
-			case 0xF8: return ld_hl_spdd(); //LD   HL,SP+dd
-			case 0xF9: return ld16();
-			case 0xFA: return ldFromMemI(A); //LD   A,(nn)
-			case 0xFB: return ei();
-			case 0xFC: return unused();
-			case 0xFD: return unused();
-			case 0xFE: return ALUI(ALUOP.CP);
-			case 0xFF: return rst(0x38);
+		switch (opcode) {
+		case 0x00:
+			return nop();
+		case 0x01:
+			return ld16_rrI(B, C);
+		case 0x02:
+			return ldToMem_rrr(B, C, A);
+		case 0x03:
+			return inc16_rr(B, C);
+		case 0x04:
+			return inc_r(B);
+		case 0x05:
+			return dec_r(B);
+		case 0x06:
+			return ld_rI(B);
+		case 0x07:
+			return shiftFast_r(SHIFTOP.RLC, A); // rlca
+		case 0x08:
+			return ld_imm_sp_(); // LD (nn),SP
+		case 0x09:
+			return addHL_rr(B, C);
+		case 0x0A:
+			return ldFromMem_rrr(A, B, C);
+		case 0x0B:
+			return dec16_rr(B, C);
+		case 0x0C:
+			return inc_r(C);
+		case 0x0D:
+			return dec_r(C);
+		case 0x0E:
+			return ld_rI(C);
+		case 0x0F:
+			return shiftFast_r(SHIFTOP.RRC, A);
+
+		case 0x10:
+			return stop_();
+		case 0x11:
+			return ld16_rrI(D, E);
+		case 0x12:
+			return ldToMem_rrr(D, E, A);
+		case 0x13:
+			return inc16_rr(D, E);
+		case 0x14:
+			return inc_r(D);
+		case 0x15:
+			return dec_r(D);
+		case 0x16:
+			return ld_rI(D);
+		case 0x17:
+			return shiftFast_r(SHIFTOP.RL, A);
+		case 0x18:
+			return jr_();
+		case 0x19:
+			return addHL_rr(D, E); // ADD HL, DE
+		case 0x1A:
+			return ldFromMem_rrr(A, D, E);
+		case 0x1B:
+			return dec16_rr(D, E);
+		case 0x1C:
+			return inc_r(E);
+		case 0x1D:
+			return dec_r(E);
+		case 0x1E:
+			return ld_rI(E);
+		case 0x1F:
+			return shiftFast_r(SHIFTOP.RR, A);
+
+		case 0x20:
+			return jrNZ_();
+		case 0x21:
+			return ld16_rrI(H, L);
+		case 0x22:
+			return ldi_HLA();
+		case 0x23:
+			return inc16_rr(H, L);
+		case 0x24:
+			return inc_r(H);
+		case 0x25:
+			return dec_r(H);
+		case 0x26:
+			return ld_rI(H);
+		case 0x27:
+			return daa_();
+		case 0x28:
+			return jrZ_();
+		case 0x29:
+			return addHL_rr(H, L);
+		case 0x2A:
+			return ldi_AHL();
+		case 0x2B:
+			return dec16_rr(H, L);
+		case 0x2C:
+			return inc_r(L);
+		case 0x2D:
+			return dec_r(L);
+		case 0x2E:
+			return ld_rI(L);
+		case 0x2F:
+			return cpl_();
+
+		case 0x30:
+			return jrNC_();
+		case 0x31:
+			return ld16__I();
+		case 0x32:
+			return ldd_HLA();
+		case 0x33:
+			return inc16_();
+		case 0x34:
+			return inc_HL();
+		case 0x35:
+			return dec_HL();
+		case 0x36:
+			return ldToMem_rrI(H, L);
+		case 0x37:
+			return scf_();
+		case 0x38:
+			return jrC_();
+		case 0x39:
+			return addHL_();
+		case 0x3A:
+			return ldd_AHL();
+		case 0x3B:
+			return dec16_();
+		case 0x3C:
+			return inc_r(A);
+		case 0x3D:
+			return dec_r(A);
+		case 0x3E:
+			return ld_rI(A);
+		case 0x3F:
+			return ccf_();
+
+		case 0x40:
+			return ld_rr(B, B);
+		case 0x41:
+			return ld_rr(B, C);
+		case 0x42:
+			return ld_rr(B, D);
+		case 0x43:
+			return ld_rr(B, E);
+		case 0x44:
+			return ld_rr(B, H);
+		case 0x45:
+			return ld_rr(B, L);
+		case 0x46:
+			return ldFromMem_rrr(B, H, L);
+		case 0x47:
+			return ld_rr(B, A);
+
+		case 0x48:
+			return ld_rr(C, B);
+		case 0x49:
+			return ld_rr(C, C);
+		case 0x4A:
+			return ld_rr(C, D);
+		case 0x4B:
+			return ld_rr(C, E);
+		case 0x4C:
+			return ld_rr(C, H);
+		case 0x4D:
+			return ld_rr(C, L);
+		case 0x4E:
+			return ldFromMem_rrr(C, H, L);
+		case 0x4F:
+			return ld_rr(C, A);
+
+		case 0x50:
+			return ld_rr(D, B);
+		case 0x51:
+			return ld_rr(D, C);
+		case 0x52:
+			return ld_rr(D, D);
+		case 0x53:
+			return ld_rr(D, E);
+		case 0x54:
+			return ld_rr(D, H);
+		case 0x55:
+			return ld_rr(D, L);
+		case 0x56:
+			return ldFromMem_rrr(D, H, L);
+		case 0x57:
+			return ld_rr(D, A);
+
+		case 0x58:
+			return ld_rr(E, B);
+		case 0x59:
+			return ld_rr(E, C);
+		case 0x5A:
+			return ld_rr(E, D);
+		case 0x5B:
+			return ld_rr(E, E);
+		case 0x5C:
+			return ld_rr(E, H);
+		case 0x5D:
+			return ld_rr(E, L);
+		case 0x5E:
+			return ldFromMem_rrr(E, H, L);
+		case 0x5F:
+			return ld_rr(E, A);
+
+		case 0x60:
+			return ld_rr(H, B);
+		case 0x61:
+			return ld_rr(H, C);
+		case 0x62:
+			return ld_rr(H, D);
+		case 0x63:
+			return ld_rr(H, E);
+		case 0x64:
+			return ld_rr(H, H);
+		case 0x65:
+			return ld_rr(H, L);
+		case 0x66:
+			return ldFromMem_rrr(H, H, L);
+		case 0x67:
+			return ld_rr(H, A);
+
+		case 0x68:
+			return ld_rr(L, B);
+		case 0x69:
+			return ld_rr(L, C);
+		case 0x6A:
+			return ld_rr(L, D);
+		case 0x6B:
+			return ld_rr(L, E);
+		case 0x6C:
+			return ld_rr(L, H);
+		case 0x6D:
+			return ld_rr(L, L);
+		case 0x6E:
+			return ldFromMem_rrr(L, H, L);
+		case 0x6F:
+			return ld_rr(L, A);
+
+		case 0x70:
+			return ldToMem_rrr(H, L, B);
+		case 0x71:
+			return ldToMem_rrr(H, L, C);
+		case 0x72:
+			return ldToMem_rrr(H, L, D);
+		case 0x73:
+			return ldToMem_rrr(H, L, E);
+		case 0x74:
+			return ldToMem_rrr(H, L, H);
+		case 0x75:
+			return ldToMem_rrr(H, L, L);
+		case 0x76:
+			return halt_();
+		case 0x77:
+			return ldToMem_rrr(H, L, A);
+
+		case 0x78:
+			return ld_rr(A, B);
+		case 0x79:
+			return ld_rr(A, C);
+		case 0x7A:
+			return ld_rr(A, D);
+		case 0x7B:
+			return ld_rr(A, E);
+		case 0x7C:
+			return ld_rr(A, H);
+		case 0x7D:
+			return ld_rr(A, L);
+		case 0x7E:
+			return ldFromMem_rrr(A, H, L);
+		case 0x7F:
+			return ld_rr(A, A);
+
+		case 0x80:
+			return alu_rr(ALUOP.ADD, A, B);
+		case 0x81:
+			return alu_rr(ALUOP.ADD, A, C);
+		case 0x82:
+			return alu_rr(ALUOP.ADD, A, D);
+		case 0x83:
+			return alu_rr(ALUOP.ADD, A, E);
+		case 0x84:
+			return alu_rr(ALUOP.ADD, A, H);
+		case 0x85:
+			return alu_rr(ALUOP.ADD, A, L);
+		case 0x86:
+			return alu_HL(ALUOP.ADD);
+		case 0x87:
+			return alu_rr(ALUOP.ADD, A, A);
+
+		case 0x88:
+			return alu_rr(ALUOP.ADC, A, B);
+		case 0x89:
+			return alu_rr(ALUOP.ADC, A, C);
+		case 0x8A:
+			return alu_rr(ALUOP.ADC, A, D);
+		case 0x8B:
+			return alu_rr(ALUOP.ADC, A, E);
+		case 0x8C:
+			return alu_rr(ALUOP.ADC, A, H);
+		case 0x8D:
+			return alu_rr(ALUOP.ADC, A, L);
+		case 0x8E:
+			return alu_HL(ALUOP.ADC);
+		case 0x8F:
+			return alu_rr(ALUOP.ADC, A, A);
+
+		case 0x90:
+			return alu_rr(ALUOP.SUB, A, B);
+		case 0x91:
+			return alu_rr(ALUOP.SUB, A, C);
+		case 0x92:
+			return alu_rr(ALUOP.SUB, A, D);
+		case 0x93:
+			return alu_rr(ALUOP.SUB, A, E);
+		case 0x94:
+			return alu_rr(ALUOP.SUB, A, H);
+		case 0x95:
+			return alu_rr(ALUOP.SUB, A, L);
+		case 0x96:
+			return alu_HL(ALUOP.SUB);
+		case 0x97:
+			return alu_rr(ALUOP.SUB, A, A);
+
+		case 0x98:
+			return alu_rr(ALUOP.SBC, A, B);
+		case 0x99:
+			return alu_rr(ALUOP.SBC, A, C);
+		case 0x9A:
+			return alu_rr(ALUOP.SBC, A, D);
+		case 0x9B:
+			return alu_rr(ALUOP.SBC, A, E);
+		case 0x9C:
+			return alu_rr(ALUOP.SBC, A, H);
+		case 0x9D:
+			return alu_rr(ALUOP.SBC, A, L);
+		case 0x9E:
+			return alu_HL(ALUOP.SBC);
+		case 0x9F:
+			return alu_rr(ALUOP.SBC, A, A);
+
+		case 0xA0:
+			return alu_rr(ALUOP.AND, A, B);
+		case 0xA1:
+			return alu_rr(ALUOP.AND, A, C);
+		case 0xA2:
+			return alu_rr(ALUOP.AND, A, D);
+		case 0xA3:
+			return alu_rr(ALUOP.AND, A, E);
+		case 0xA4:
+			return alu_rr(ALUOP.AND, A, H);
+		case 0xA5:
+			return alu_rr(ALUOP.AND, A, L);
+		case 0xA6:
+			return alu_HL(ALUOP.AND);
+		case 0xA7:
+			return alu_rr(ALUOP.AND, A, A);
+
+		case 0xA8:
+			return alu_rr(ALUOP.XOR, A, B);
+		case 0xA9:
+			return alu_rr(ALUOP.XOR, A, C);
+		case 0xAA:
+			return alu_rr(ALUOP.XOR, A, D);
+		case 0xAB:
+			return alu_rr(ALUOP.XOR, A, E);
+		case 0xAC:
+			return alu_rr(ALUOP.XOR, A, H);
+		case 0xAD:
+			return alu_rr(ALUOP.XOR, A, L);
+		case 0xAE:
+			return alu_HL(ALUOP.XOR);
+		case 0xAF:
+			return alu_rr(ALUOP.XOR, A, A);
+
+		case 0xB0:
+			return alu_rr(ALUOP.OR, A, B);
+		case 0xB1:
+			return alu_rr(ALUOP.OR, A, C);
+		case 0xB2:
+			return alu_rr(ALUOP.OR, A, D);
+		case 0xB3:
+			return alu_rr(ALUOP.OR, A, E);
+		case 0xB4:
+			return alu_rr(ALUOP.OR, A, H);
+		case 0xB5:
+			return alu_rr(ALUOP.OR, A, L);
+		case 0xB6:
+			return alu_HL(ALUOP.OR);
+		case 0xB7:
+			return alu_rr(ALUOP.OR, A, A);
+
+		case 0xB8:
+			return alu_rr(ALUOP.CP, A, B);
+		case 0xB9:
+			return alu_rr(ALUOP.CP, A, C);
+		case 0xBA:
+			return alu_rr(ALUOP.CP, A, D);
+		case 0xBB:
+			return alu_rr(ALUOP.CP, A, E);
+		case 0xBC:
+			return alu_rr(ALUOP.CP, A, H);
+		case 0xBD:
+			return alu_rr(ALUOP.CP, A, L);
+		case 0xBE:
+			return alu_HL(ALUOP.CP);
+		case 0xBF:
+			return alu_rr(ALUOP.CP, A, A);
+
+		case 0xC0:
+			return retNZ_();
+		case 0xC1:
+			return pop_rr(B, C);
+		case 0xC2:
+			return jpNZ_();
+		case 0xC3:
+			return jp_();
+		case 0xC4:
+			return callNZ_();
+		case 0xC5:
+			return push_rr(B, C);
+		case 0xC6:
+			return alu_I(ALUOP.ADD);
+		case 0xC7:
+			return rst_v(0x00);
+		case 0xC8:
+			return retZ_();
+		case 0xC9:
+			return ret_();
+		case 0xCA:
+			return jpZ_();
+		case 0xCB:
+			return CBop(mem.read(++pc));
+		case 0xCC:
+			return callZ_();
+		case 0xCD:
+			return call_();
+		case 0xCE:
+			return alu_I(ALUOP.ADC);
+		case 0xCF:
+			return rst_v(0x08);
+
+		case 0xD0:
+			return retNC_();
+		case 0xD1:
+			return pop_rr(D, E);
+		case 0xD2:
+			return jpNC_();
+		case 0xD3:
+			return unused_();
+		case 0xD4:
+			return callNC_();
+		case 0xD5:
+			return push_rr(D, E);
+		case 0xD6:
+			return alu_I(ALUOP.SUB);
+		case 0xD7:
+			return rst_v(0x10);
+		case 0xD8:
+			return retC_();
+		case 0xD9:
+			return reti_(); // RETI
+		case 0xDA:
+			return jpC_();
+		case 0xDB:
+			return unused_();
+		case 0xDC:
+			return callC_();
+		case 0xDD:
+			return unused_();
+		case 0xDE:
+			return alu_I(ALUOP.SBC);
+		case 0xDF:
+			return rst_v(0x18);
+
+		case 0xE0:
+			return ldh_IA(); // LD (FF00+n),A
+		case 0xE1:
+			return pop_rr(H, L);
+		case 0xE2:
+			return ldc_CA(); // LD (FF00+C),A
+		case 0xE3:
+			return unused_();
+		case 0xE4:
+			return unused_();
+		case 0xE5:
+			return push_rr(H, L);
+		case 0xE6:
+			return alu_I(ALUOP.AND);
+		case 0xE7:
+			return rst_v(0x20);
+		case 0xE8:
+			return add_sp_n_(); // ADD SP,dd
+		case 0xE9:
+			return jpHL_();
+		case 0xEA:
+			return ldToMem_Ir(A); // LD (nn),A
+		case 0xEB:
+			return unused_();
+		case 0xEC:
+			return unused_();
+		case 0xED:
+			return unused_();
+		case 0xEE:
+			return alu_I(ALUOP.XOR);
+		case 0xEF:
+			return rst_v(0x28);
+
+		case 0xF0:
+			return ldh_AI(); // LD A,(FF00+n)
+		case 0xF1:
+			return pop_();
+		case 0xF2:
+			return ldc_AC(); // LD A,(FF00+C)
+		case 0xF3:
+			return di_();
+		case 0xF4:
+			return unused_();
+		case 0xF5:
+			return push_();
+		case 0xF6:
+			return alu_I(ALUOP.OR);
+		case 0xF7:
+			return rst_v(0x30);
+		case 0xF8:
+			return ld_hl_spdd_(); // LD HL,SP+dd
+		case 0xF9:
+			return ld16_();
+		case 0xFA:
+			return ldFromMem_rI(A); // LD A,(nn)
+		case 0xFB:
+			return ei_();
+		case 0xFC:
+			return unused_();
+		case 0xFD:
+			return unused_();
+		case 0xFE:
+			return alu_I(ALUOP.CP);
+		case 0xFF:
+			return rst_v(0x38);
 		}
 		return -1;
 	}
-	
+
 	public int CBop(int opcode) {
-		switch(opcode) {
-			case 0x00: return shift(SHIFTOP.RLC, B);
-			case 0x01: return shift(SHIFTOP.RLC, C);
-			case 0x02: return shift(SHIFTOP.RLC, D);
-			case 0x03: return shift(SHIFTOP.RLC, E);
-			case 0x04: return shift(SHIFTOP.RLC, H);
-			case 0x05: return shift(SHIFTOP.RLC, L);
-			case 0x06: return shift(SHIFTOP.RLC, HL);
-			case 0x07: return shift(SHIFTOP.RLC, A);
-			case 0x08: return shift(SHIFTOP.RRC, B);
-			case 0x09: return shift(SHIFTOP.RRC, C);
-			case 0x0A: return shift(SHIFTOP.RRC, D);
-			case 0x0B: return shift(SHIFTOP.RRC, E);
-			case 0x0C: return shift(SHIFTOP.RRC, H);
-			case 0x0D: return shift(SHIFTOP.RRC, L);
-			case 0x0E: return shift(SHIFTOP.RRC, HL);
-			case 0x0F: return shift(SHIFTOP.RRC, A);
-	
-			case 0x10: return shift(SHIFTOP.RL, B);
-			case 0x11: return shift(SHIFTOP.RL, C);
-			case 0x12: return shift(SHIFTOP.RL, D);
-			case 0x13: return shift(SHIFTOP.RL, E);
-			case 0x14: return shift(SHIFTOP.RL, H);
-			case 0x15: return shift(SHIFTOP.RL, L);
-			case 0x16: return shift(SHIFTOP.RL, HL);
-			case 0x17: return shift(SHIFTOP.RL, A);
-			case 0x18: return shift(SHIFTOP.RR, B);
-			case 0x19: return shift(SHIFTOP.RR, C);
-			case 0x1A: return shift(SHIFTOP.RR, D);
-			case 0x1B: return shift(SHIFTOP.RR, E);
-			case 0x1C: return shift(SHIFTOP.RR, H);
-			case 0x1D: return shift(SHIFTOP.RR, L);
-			case 0x1E: return shift(SHIFTOP.RR, HL);
-			case 0x1F: return shift(SHIFTOP.RR, A);
-	
-			case 0x20: return shift(SHIFTOP.SLA, B);
-			case 0x21: return shift(SHIFTOP.SLA, C);
-			case 0x22: return shift(SHIFTOP.SLA, D);
-			case 0x23: return shift(SHIFTOP.SLA, E);
-			case 0x24: return shift(SHIFTOP.SLA, H);
-			case 0x25: return shift(SHIFTOP.SLA, L);
-			case 0x26: return shift(SHIFTOP.SLA, HL);
-			case 0x27: return shift(SHIFTOP.SLA, A);
-			case 0x28: return shift(SHIFTOP.SRA, B);
-			case 0x29: return shift(SHIFTOP.SRA, C);
-			case 0x2A: return shift(SHIFTOP.SRA, D);
-			case 0x2B: return shift(SHIFTOP.SRA, E);
-			case 0x2C: return shift(SHIFTOP.SRA, H);
-			case 0x2D: return shift(SHIFTOP.SRA, L);
-			case 0x2E: return shift(SHIFTOP.SRA, HL);
-			case 0x2F: return shift(SHIFTOP.SRA, A);
-	
-			case 0x38: return shift(SHIFTOP.SRL, B);
-			case 0x39: return shift(SHIFTOP.SRL, C);
-			case 0x3A: return shift(SHIFTOP.SRL, D);
-			case 0x3B: return shift(SHIFTOP.SRL, E);
-			case 0x3C: return shift(SHIFTOP.SRL, H);
-			case 0x3D: return shift(SHIFTOP.SRL, L);
-			case 0x3E: return shift(SHIFTOP.SRL, HL);
-			case 0x3F: return shift(SHIFTOP.SRL, A);
+		switch (opcode) {
+		case 0x00:
+			return shift_r(SHIFTOP.RLC, B);
+		case 0x01:
+			return shift_r(SHIFTOP.RLC, C);
+		case 0x02:
+			return shift_r(SHIFTOP.RLC, D);
+		case 0x03:
+			return shift_r(SHIFTOP.RLC, E);
+		case 0x04:
+			return shift_r(SHIFTOP.RLC, H);
+		case 0x05:
+			return shift_r(SHIFTOP.RLC, L);
+		case 0x06:
+			return shift_HL(SHIFTOP.RLC);
+		case 0x07:
+			return shift_r(SHIFTOP.RLC, A);
+		case 0x08:
+			return shift_r(SHIFTOP.RRC, B);
+		case 0x09:
+			return shift_r(SHIFTOP.RRC, C);
+		case 0x0A:
+			return shift_r(SHIFTOP.RRC, D);
+		case 0x0B:
+			return shift_r(SHIFTOP.RRC, E);
+		case 0x0C:
+			return shift_r(SHIFTOP.RRC, H);
+		case 0x0D:
+			return shift_r(SHIFTOP.RRC, L);
+		case 0x0E:
+			return shift_HL(SHIFTOP.RRC);
+		case 0x0F:
+			return shift_r(SHIFTOP.RRC, A);
+
+		case 0x10:
+			return shift_r(SHIFTOP.RL, B);
+		case 0x11:
+			return shift_r(SHIFTOP.RL, C);
+		case 0x12:
+			return shift_r(SHIFTOP.RL, D);
+		case 0x13:
+			return shift_r(SHIFTOP.RL, E);
+		case 0x14:
+			return shift_r(SHIFTOP.RL, H);
+		case 0x15:
+			return shift_r(SHIFTOP.RL, L);
+		case 0x16:
+			return shift_HL(SHIFTOP.RL);
+		case 0x17:
+			return shift_r(SHIFTOP.RL, A);
+		case 0x18:
+			return shift_r(SHIFTOP.RR, B);
+		case 0x19:
+			return shift_r(SHIFTOP.RR, C);
+		case 0x1A:
+			return shift_r(SHIFTOP.RR, D);
+		case 0x1B:
+			return shift_r(SHIFTOP.RR, E);
+		case 0x1C:
+			return shift_r(SHIFTOP.RR, H);
+		case 0x1D:
+			return shift_r(SHIFTOP.RR, L);
+		case 0x1E:
+			return shift_HL(SHIFTOP.RR);
+		case 0x1F:
+			return shift_r(SHIFTOP.RR, A);
+
+		case 0x20:
+			return shift_r(SHIFTOP.SLA, B);
+		case 0x21:
+			return shift_r(SHIFTOP.SLA, C);
+		case 0x22:
+			return shift_r(SHIFTOP.SLA, D);
+		case 0x23:
+			return shift_r(SHIFTOP.SLA, E);
+		case 0x24:
+			return shift_r(SHIFTOP.SLA, H);
+		case 0x25:
+			return shift_r(SHIFTOP.SLA, L);
+		case 0x26:
+			return shift_HL(SHIFTOP.SLA);
+		case 0x27:
+			return shift_r(SHIFTOP.SLA, A);
+		case 0x28:
+			return shift_r(SHIFTOP.SRA, B);
+		case 0x29:
+			return shift_r(SHIFTOP.SRA, C);
+		case 0x2A:
+			return shift_r(SHIFTOP.SRA, D);
+		case 0x2B:
+			return shift_r(SHIFTOP.SRA, E);
+		case 0x2C:
+			return shift_r(SHIFTOP.SRA, H);
+		case 0x2D:
+			return shift_r(SHIFTOP.SRA, L);
+		case 0x2E:
+			return shift_HL(SHIFTOP.SRA);
+		case 0x2F:
+			return shift_r(SHIFTOP.SRA, A);
+
+		case 0x38:
+			return shift_r(SHIFTOP.SRL, B);
+		case 0x39:
+			return shift_r(SHIFTOP.SRL, C);
+		case 0x3A:
+			return shift_r(SHIFTOP.SRL, D);
+		case 0x3B:
+			return shift_r(SHIFTOP.SRL, E);
+		case 0x3C:
+			return shift_r(SHIFTOP.SRL, H);
+		case 0x3D:
+			return shift_r(SHIFTOP.SRL, L);
+		case 0x3E:
+			return shift_HL(SHIFTOP.SRL);
+		case 0x3F:
+			return shift_r(SHIFTOP.SRL, A);
+
+		case 0x30:
+			return swap_r(B);
+		case 0x31:
+			return swap_r(C);
+		case 0x32:
+			return swap_r(D);
+		case 0x33:
+			return swap_r(E);
+		case 0x34:
+			return swap_r(H);
+		case 0x35:
+			return swap_r(L);
+		case 0x36:
+			return swap_();
+		case 0x37:
+			return swap_r(A);
+
+		case 0x40:
+			return bit_vr(0, 0);
+		case 0x80:
+			return res_vr(0, 0);
+		case 0xC0:
+			return set_vr(0, 0);
+		case 0x41:
+			return bit_vr(0, 1);
+		case 0x81:
+			return res_vr(0, 1);
+		case 0xC1:
+			return set_vr(0, 1);
+		case 0x42:
+			return bit_vr(0, 2);
+		case 0x82:
+			return res_vr(0, 2);
+		case 0xC2:
+			return set_vr(0, 2);
+		case 0x43:
+			return bit_vr(0, 3);
+		case 0x83:
+			return res_vr(0, 3);
+		case 0xC3:
+			return set_vr(0, 3);
+		case 0x44:
+			return bit_vr(0, 4);
+		case 0x84:
+			return res_vr(0, 4);
+		case 0xC4:
+			return set_vr(0, 4);
+		case 0x45:
+			return bit_vr(0, 5);
+		case 0x85:
+			return res_vr(0, 5);
+		case 0xC5:
+			return set_vr(0, 5);
+		case 0x46:
+			return bit_vHL(0, 6);
+		case 0x86:
+			return res_vHL(0, 6);
+		case 0xC6:
+			return set_vHL(0, 6);
+		case 0x47:
+			return bit_vr(0, 7);
+		case 0x87:
+			return res_vr(0, 7);
+		case 0xC7:
+			return set_vr(0, 7);
+		case 0x48:
+			return bit_vr(1, 0);
+		case 0x88:
+			return res_vr(1, 0);
+		case 0xC8:
+			return set_vr(1, 0);
+		case 0x49:
+			return bit_vr(1, 1);
+		case 0x89:
+			return res_vr(1, 1);
+		case 0xC9:
+			return set_vr(1, 1);
+		case 0x4A:
+			return bit_vr(1, 2);
+		case 0x8A:
+			return res_vr(1, 2);
+		case 0xCA:
+			return set_vr(1, 2);
+		case 0x4B:
+			return bit_vr(1, 3);
+		case 0x8B:
+			return res_vr(1, 3);
+		case 0xCB:
+			return set_vr(1, 3);
+		case 0x4C:
+			return bit_vr(1, 4);
+		case 0x8C:
+			return res_vr(1, 4);
+		case 0xCC:
+			return set_vr(1, 4);
+		case 0x4D:
+			return bit_vr(1, 5);
+		case 0x8D:
+			return res_vr(1, 5);
+		case 0xCD:
+			return set_vr(1, 5);
+		case 0x4E:
+			return bit_vHL(1, 6);
+		case 0x8E:
+			return res_vHL(1, 6);
+		case 0xCE:
+			return set_vHL(1, 6);
+		case 0x4F:
+			return bit_vr(1, 7);
+		case 0x8F:
+			return res_vr(1, 7);
+		case 0xCF:
+			return set_vr(1, 7);
+		case 0x50:
+			return bit_vr(2, 0);
+		case 0x90:
+			return res_vr(2, 0);
+		case 0xD0:
+			return set_vr(2, 0);
+		case 0x51:
+			return bit_vr(2, 1);
+		case 0x91:
+			return res_vr(2, 1);
+		case 0xD1:
+			return set_vr(2, 1);
+		case 0x52:
+			return bit_vr(2, 2);
+		case 0x92:
+			return res_vr(2, 2);
+		case 0xD2:
+			return set_vr(2, 2);
+		case 0x53:
+			return bit_vr(2, 3);
+		case 0x93:
+			return res_vr(2, 3);
+		case 0xD3:
+			return set_vr(2, 3);
+		case 0x54:
+			return bit_vr(2, 4);
+		case 0x94:
+			return res_vr(2, 4);
+		case 0xD4:
+			return set_vr(2, 4);
+		case 0x55:
+			return bit_vr(2, 5);
+		case 0x95:
+			return res_vr(2, 5);
+		case 0xD5:
+			return set_vr(2, 5);
+		case 0x56:
+			return bit_vHL(2, 6);
+		case 0x96:
+			return res_vHL(2, 6);
+		case 0xD6:
+			return set_vHL(2, 6);
+		case 0x57:
+			return bit_vr(2, 7);
+		case 0x97:
+			return res_vr(2, 7);
+		case 0xD7:
+			return set_vr(2, 7);
+		case 0x58:
+			return bit_vr(3, 0);
+		case 0x98:
+			return res_vr(3, 0);
+		case 0xD8:
+			return set_vr(3, 0);
+		case 0x59:
+			return bit_vr(3, 1);
+		case 0x99:
+			return res_vr(3, 1);
+		case 0xD9:
+			return set_vr(3, 1);
+		case 0x5A:
+			return bit_vr(3, 2);
+		case 0x9A:
+			return res_vr(3, 2);
+		case 0xDA:
+			return set_vr(3, 2);
+		case 0x5B:
+			return bit_vr(3, 3);
+		case 0x9B:
+			return res_vr(3, 3);
+		case 0xDB:
+			return set_vr(3, 3);
+		case 0x5C:
+			return bit_vr(3, 4);
+		case 0x9C:
+			return res_vr(3, 4);
+		case 0xDC:
+			return set_vr(3, 4);
+		case 0x5D:
+			return bit_vr(3, 5);
+		case 0x9D:
+			return res_vr(3, 5);
+		case 0xDD:
+			return set_vr(3, 5);
+		case 0x5E:
+			return bit_vHL(3, 6);
+		case 0x9E:
+			return res_vHL(3, 6);
+		case 0xDE:
+			return set_vHL(3, 6);
+		case 0x5F:
+			return bit_vr(3, 7);
+		case 0x9F:
+			return res_vr(3, 7);
+		case 0xDF:
+			return set_vr(3, 7);
+		case 0x60:
+			return bit_vr(4, 0);
+		case 0xA0:
+			return res_vr(4, 0);
+		case 0xE0:
+			return set_vr(4, 0);
+		case 0x61:
+			return bit_vr(4, 1);
+		case 0xA1:
+			return res_vr(4, 1);
+		case 0xE1:
+			return set_vr(4, 1);
+		case 0x62:
+			return bit_vr(4, 2);
+		case 0xA2:
+			return res_vr(4, 2);
+		case 0xE2:
+			return set_vr(4, 2);
+		case 0x63:
+			return bit_vr(4, 3);
+		case 0xA3:
+			return res_vr(4, 3);
+		case 0xE3:
+			return set_vr(4, 3);
+		case 0x64:
+			return bit_vr(4, 4);
+		case 0xA4:
+			return res_vr(4, 4);
+		case 0xE4:
+			return set_vr(4, 4);
+		case 0x65:
+			return bit_vr(4, 5);
+		case 0xA5:
+			return res_vr(4, 5);
+		case 0xE5:
+			return set_vr(4, 5);
+		case 0x66:
+			return bit_vHL(4, 6);
+		case 0xA6:
+			return res_vHL(4, 6);
+		case 0xE6:
+			return set_vHL(4, 6);
+		case 0x67:
+			return bit_vr(4, 7);
+		case 0xA7:
+			return res_vr(4, 7);
+		case 0xE7:
+			return set_vr(4, 7);
+		case 0x68:
+			return bit_vr(5, 0);
+		case 0xA8:
+			return res_vr(5, 0);
+		case 0xE8:
+			return set_vr(5, 0);
+		case 0x69:
+			return bit_vr(5, 1);
+		case 0xA9:
+			return res_vr(5, 1);
+		case 0xE9:
+			return set_vr(5, 1);
+		case 0x6A:
+			return bit_vr(5, 2);
+		case 0xAA:
+			return res_vr(5, 2);
+		case 0xEA:
+			return set_vr(5, 2);
+		case 0x6B:
+			return bit_vr(5, 3);
+		case 0xAB:
+			return res_vr(5, 3);
+		case 0xEB:
+			return set_vr(5, 3);
+		case 0x6C:
+			return bit_vr(5, 4);
+		case 0xAC:
+			return res_vr(5, 4);
+		case 0xEC:
+			return set_vr(5, 4);
+		case 0x6D:
+			return bit_vr(5, 5);
+		case 0xAD:
+			return res_vr(5, 5);
+		case 0xED:
+			return set_vr(5, 5);
+		case 0x6E:
+			return bit_vHL(5, 6);
+		case 0xAE:
+			return res_vHL(5, 6);
+		case 0xEE:
+			return set_vHL(5, 6);
+		case 0x6F:
+			return bit_vr(5, 7);
+		case 0xAF:
+			return res_vr(5, 7);
+		case 0xEF:
+			return set_vr(5, 7);
+		case 0x70:
+			return bit_vr(6, 0);
+		case 0xB0:
+			return res_vr(6, 0);
+		case 0xF0:
+			return set_vr(6, 0);
+		case 0x71:
+			return bit_vr(6, 1);
+		case 0xB1:
+			return res_vr(6, 1);
+		case 0xF1:
+			return set_vr(6, 1);
+		case 0x72:
+			return bit_vr(6, 2);
+		case 0xB2:
+			return res_vr(6, 2);
+		case 0xF2:
+			return set_vr(6, 2);
+		case 0x73:
+			return bit_vr(6, 3);
+		case 0xB3:
+			return res_vr(6, 3);
+		case 0xF3:
+			return set_vr(6, 3);
+		case 0x74:
+			return bit_vr(6, 4);
+		case 0xB4:
+			return res_vr(6, 4);
+		case 0xF4:
+			return set_vr(6, 4);
+		case 0x75:
+			return bit_vr(6, 5);
+		case 0xB5:
+			return res_vr(6, 5);
+		case 0xF5:
+			return set_vr(6, 5);
+		case 0x76:
+			return bit_vHL(6, 6);
+		case 0xB6:
+			return res_vHL(6, 6);
+		case 0xF6:
+			return set_vHL(6, 6);
+		case 0x77:
+			return bit_vr(6, 7);
+		case 0xB7:
+			return res_vr(6, 7);
+		case 0xF7:
+			return set_vr(6, 7);
+		case 0x78:
+			return bit_vr(7, 0);
+		case 0xB8:
+			return res_vr(7, 0);
+		case 0xF8:
+			return set_vr(7, 0);
+		case 0x79:
+			return bit_vr(7, 1);
+		case 0xB9:
+			return res_vr(7, 1);
+		case 0xF9:
+			return set_vr(7, 1);
+		case 0x7A:
+			return bit_vr(7, 2);
+		case 0xBA:
+			return res_vr(7, 2);
+		case 0xFA:
+			return set_vr(7, 2);
+		case 0x7B:
+			return bit_vr(7, 3);
+		case 0xBB:
+			return res_vr(7, 3);
+		case 0xFB:
+			return set_vr(7, 3);
+		case 0x7C:
+			return bit_vr(7, 4);
+		case 0xBC:
+			return res_vr(7, 4);
+		case 0xFC:
+			return set_vr(7, 4);
+		case 0x7D:
+			return bit_vr(7, 5);
+		case 0xBD:
+			return res_vr(7, 5);
+		case 0xFD:
+			return set_vr(7, 5);
+		case 0x7E:
+			return bit_vHL(7, 6);
+		case 0xBE:
+			return res_vHL(7, 6);
+		case 0xFE:
+			return set_vHL(7, 6);
+		case 0x7F:
+			return bit_vr(7, 7);
+		case 0xBF:
+			return res_vr(7, 7);
+		case 0xFF:
+			return set_vr(7, 7);
+
 		}
 		return -1;
 	}
@@ -444,19 +1153,19 @@ public class CPU {
 
 	// ALU:
 
-	private int ALUI(ALUOP opcode) {
+	private int alu_I(ALUOP opcode) {
 		reg[A] = ALUdo(opcode, mem.read(pc + 1));
 		pc += 2;
 		return 8;
 	}
 
-	private int ALU(ALUOP opcode) {
+	private int alu_HL(ALUOP opcode) {
 		reg[A] = ALUdo(opcode, mem.read(addr(H, L)));
 		pc += 1;
 		return 8;
 	}
 
-	private int ALU(ALUOP opcode, int a, int b) {
+	private int alu_rr(ALUOP opcode, int a, int b) {
 		reg[a] = ALUdo(opcode, reg[b]);
 		pc += 1;
 		return 4;
@@ -512,49 +1221,49 @@ public class CPU {
 	}
 
 	// Ops:
-	private int ldI(int a) {
+	private int ld_rI(int a) {
 		reg[a] = mem.read(pc + 1);
 		pc += 2;
 		return 8;
 	}
 
-	private int ld(int a, int b) {
+	private int ld_rr(int a, int b) {
 		reg[a] = reg[b];
 		pc += 1;
 		return 4;
 	}
 
-	private int ldFromMemI(int a) {
+	private int ldFromMem_rI(int a) {
 		reg[a] = mem.read(mem.read(pc + 1) + (mem.read(pc + 2) << 8));
 		pc += 3;
 		return 16;
 	}
 
-	private int ldFromMem(int a, int b, int c) {
+	private int ldFromMem_rrr(int a, int b, int c) {
 		reg[a] = mem.read(addr(b, c));
 		pc += 1;
 		return 8;
 	}
 
-	private int ldToMemI(int b) {
+	private int ldToMem_Ir(int b) {
 		mem.write(mem.read(pc + 1) + (mem.read(pc + 2) << 8), reg[b]);
 		pc += 3;
 		return 16;
 	}
 
-	private int ldToMemI(int a, int b, int c) {
-		mem.write(addr(a, b), reg[c]);
+	private int ldToMem_rrI(int a, int b) {
+		mem.write(addr(a, b), mem.read(pc + 1));
 		pc += 2;
 		return 12;
 	}
 
-	private int ldToMem(int a, int b, int c) {
+	private int ldToMem_rrr(int a, int b, int c) {
 		mem.write(addr(a, b), reg[c]);
 		pc += 1;
 		return 8;
 	}
 
-	private int ld16I() {
+	private int ld16_HLI() { // Where????
 		int addr = mem.read(pc + 1) + (mem.read(pc + 2) << 8);
 		reg[H] = mem.read(addr + 1);
 		reg[L] = mem.read(addr);
@@ -562,26 +1271,26 @@ public class CPU {
 		return 12;
 	}
 
-	private int ld16sp() {
+	private int ld16__I() {
 		sp = mem.read(pc + 1) + (mem.read(pc + 2) << 8);
 		pc += 3;
 		return 12;
 	}
 
-	private int ld16I(int a, int b) {
+	private int ld16_rrI(int a, int b) {
 		reg[a] = mem.read(pc + 2);
 		reg[b] = mem.read(pc + 1);
 		pc += 3;
 		return 12;
 	}
 
-	private int ld16() {
+	private int ld16_() {
 		sp = (reg[H] << 8) + reg[L];
 		pc += 1;
 		return 8;
 	}
 
-	private int lddhl() {
+	private int ldd_HLA() {
 		mem.write(addr(H, L), reg[A]);
 		if (reg[L] == 0)
 			reg[H]--;
@@ -591,7 +1300,7 @@ public class CPU {
 		return 8;
 	}
 
-	private int ldd() {
+	private int ldd_AHL() {
 		reg[A] = mem.read(addr(H, L));
 
 		if (reg[L] == 0)
@@ -602,7 +1311,7 @@ public class CPU {
 		return 8;
 	}
 
-	private int ldiHL() {
+	private int ldi_HLA() {
 		mem.write(addr(H, L), reg[A]);
 
 		if (reg[L] == 255)
@@ -613,7 +1322,7 @@ public class CPU {
 		return 8;
 	}
 
-	private int ldi() {
+	private int ldi_AHL() {
 		reg[A] = mem.read(addr(H, L));
 
 		if (reg[L] == 255)
@@ -624,49 +1333,49 @@ public class CPU {
 		return 8;
 	}
 
-	private int ldcA() {
+	private int ldc_AC() {
 		reg[A] = mem.read(MemMap.IO.start + reg[C]);
 		pc += 1;
 		return 8;
 	}
 
-	private int ldc() {
+	private int ldc_CA() {
 		mem.write(MemMap.IO.start + reg[C], reg[A]);
 		pc += 1;
 		return 8;
 	}
 
-	private int ldhA() {
+	private int ldh_AI() {
 		reg[A] = mem.read(MemMap.IO.start + mem.read(pc + 1));
 		pc += 2;
 		return 12;
 	}
 
-	private int ldh() {
+	private int ldh_IA() {
 		mem.write(MemMap.IO.start + mem.read(pc + 1), reg[A]);
 		pc += 2;
 		return 12;
 	}
 
-	private int incHL(int a) {
+	private int inc_HL() {
 		mem.write(addr(H, L), offset(mem.read(addr(H, L)), 1));
 		pc += 1;
 		return 12;
 	}
 
-	private int decHL(int a) {
+	private int dec_HL() {
 		mem.write(addr(H, L), offset(mem.read(addr(H, L)), -1));
 		pc += 1;
 		return 12;
 	}
 
-	private int inc(int a) {
+	private int inc_r(int a) {
 		reg[a] = offset(reg[a], 1);
 		pc += 1;
 		return 4;
 	}
 
-	private int dec(int a) {
+	private int dec_r(int a) {
 		reg[a] = offset(reg[a], -1);
 		pc += 1;
 		return 4;
@@ -680,13 +1389,13 @@ public class CPU {
 		return res;
 	}
 
-	private int inc16() {
+	private int inc16_() {
 		sp++;
 		pc++;
 		return 8;
 	}
 
-	private int inc16(int a, int b) {
+	private int inc16_rr(int a, int b) {
 		if (reg[b] == 255)
 			reg[a]++;
 		reg[b]++;
@@ -694,13 +1403,13 @@ public class CPU {
 		return 8;
 	}
 
-	private int dec16() {
+	private int dec16_() {
 		sp--;
 		pc++;
 		return 8;
 	}
 
-	private int dec16(int a, int b) {
+	private int dec16_rr(int a, int b) {
 		if (reg[b] == 0)
 			reg[a]--;
 		reg[b]--;
@@ -712,7 +1421,7 @@ public class CPU {
 		return (a > 127) ? (a - 256) : a;
 	}
 
-	private int jrNZ() {
+	private int jrNZ_() {
 		if (flagZ) {
 			pc += 2;
 			return 8;
@@ -721,7 +1430,7 @@ public class CPU {
 		return 12;
 	}
 
-	private int jrNC() {
+	private int jrNC_() {
 		if (flagC) {
 			pc += 2;
 			return 8;
@@ -730,7 +1439,7 @@ public class CPU {
 		return 12;
 	}
 
-	private int jrZ() {
+	private int jrZ_() {
 		if (!flagZ) {
 			pc += 2;
 			return 8;
@@ -739,7 +1448,7 @@ public class CPU {
 		return 12;
 	}
 
-	private int jrC() {
+	private int jrC_() {
 		if (!flagC) {
 			pc += 2;
 			return 8;
@@ -748,17 +1457,17 @@ public class CPU {
 		return 12;
 	}
 
-	private int jr() { // unconditional relative
+	private int jr_() { // unconditional relative
 		pc += 2 + signedOffset(mem.read(pc + 1));
 		return 12;
 	}
 
-	private int jp() { // unconditional absolute
+	private int jp_() { // unconditional absolute
 		pc = mem.read(pc + 1) + (mem.read(pc + 2) << 8);
 		return 16;
 	}
 
-	private int jpNZ() {
+	private int jpNZ_() {
 		if (flagZ) {
 			pc += 3;
 			return 12;
@@ -767,7 +1476,7 @@ public class CPU {
 		return 16;
 	}
 
-	private int jpNC() {
+	private int jpNC_() {
 		if (flagC) {
 			pc += 3;
 			return 12;
@@ -776,7 +1485,7 @@ public class CPU {
 		return 16;
 	}
 
-	private int jpZ() {
+	private int jpZ_() {
 		if (!flagZ) {
 			pc += 3;
 			return 12;
@@ -785,7 +1494,7 @@ public class CPU {
 		return 16;
 	}
 
-	private int jpC() {
+	private int jpC_() {
 		if (!flagC) {
 			pc += 3;
 			return 12;
@@ -794,12 +1503,12 @@ public class CPU {
 		return 16;
 	}
 
-	private int jpHL() {
+	private int jpHL_() {
 		pc = addr(H, L);
 		return 4;
 	}
 
-	private int push() {
+	private int push_() {
 		byte flags = (byte) ((num(flagZ) << 7) + (num(flagN) << 6) + (num(flagH) << 5) + (num(flagC) << 4));
 		sp -= 2;
 		mem.write16(sp, reg[A], flags);
@@ -807,14 +1516,14 @@ public class CPU {
 		return 16;
 	}
 
-	private int push(int a, int b) {
+	private int push_rr(int a, int b) {
 		sp -= 2;
 		mem.write16(sp, reg[a], reg[b]);
 		pc += 1;
 		return 16;
 	}
 
-	private int pop() {
+	private int pop_() {
 		reg[A] = mem.read(sp + 1); // 1st of read16
 		byte s = mem.read(sp); // 2and of read16
 		flagZ = (s & (1 << 7)) != 0;
@@ -826,7 +1535,7 @@ public class CPU {
 		return 12;
 	}
 
-	private int pop(int a, int b) {
+	private int pop_rr(int a, int b) {
 		reg[a] = mem.read(sp + 1);
 		reg[b] = mem.read(sp);
 		sp += 2;
@@ -834,7 +1543,7 @@ public class CPU {
 		return 12;
 	}
 
-	private int call() {
+	private int call_() {
 		sp -= 2;
 		var npc = pc + 3;
 		mem.write16(sp, (byte) (npc >> 8), (byte) (npc & 0xFF));
@@ -842,99 +1551,99 @@ public class CPU {
 		return 24;
 	}
 
-	private int callNZ() {
+	private int callNZ_() {
 		if (flagZ) {
 			pc += 3;
 			return 12;
 		}
-		return call();
+		return call_();
 	}
 
-	private int callNC() {
+	private int callNC_() {
 		if (flagC) {
 			pc += 3;
 			return 12;
 		}
-		return call();
+		return call_();
 	}
 
-	private int callZ() {
+	private int callZ_() {
 		if (!flagZ) {
 			pc += 3;
 			return 12;
 		}
-		return call();
+		return call_();
 	}
 
-	private int callC() {
+	private int callC_() {
 		if (!flagC) {
 			pc += 3;
 			return 12;
 		}
-		return call();
+		return call_();
 	}
 
-	private int ret() {
+	private int ret_() {
 		sp += 2;
 		pc = (mem.read(sp + 1) << 8) + mem.read(sp);
 		return 16;
 	}
 
-	private int retNZ() {
+	private int retNZ_() {
 		if (flagZ) {
 			pc++;
 			return 8;
 		}
-		ret();
+		ret_();
 		return 20;
 	}
 
-	private int retNC() {
+	private int retNC_() {
 		if (flagC) {
 			pc++;
 			return 8;
 		}
-		ret();
+		ret_();
 		return 20;
 	}
 
-	private int retZ() {
+	private int retZ_() {
 		if (!flagZ) {
 			pc++;
 			return 8;
 		}
-		ret();
+		ret_();
 		return 20;
 	}
 
-	private int retC() {
+	private int retC_() {
 		if (!flagC) {
 			pc++;
 			return 8;
 		}
-		ret();
+		ret_();
 		return 20;
 	}
 
-	private int reti() {
+	private int reti_() {
 		ime = true;
-		return ret();
+		return ret_();
 	}
 
-	private int ei() {
+	private int ei_() {
 		// This needs to wait until the end of the next instruction
 		ime = true;
 		pc += 1;
 		return 4;
 	}
 
-	private int di() {
+	private int di_() {
 		ime = false;
 		pc++;
 		return 4;
 	}
 
-	private int rst(int a) {
+	private int rst_v(int a) {
 		sp -= 2;
 		int npc = pc + 1;
 		mem.write16(sp, (byte) (npc >> 8), (byte) (npc & 0xFF));
@@ -942,21 +1651,21 @@ public class CPU {
 		return 16;
 	}
 
-	private int shiftFast(SHIFTOP opcode, byte a) {
+	private int shiftFast_r(SHIFTOP opcode, byte a) {
 		reg[a] = (byte) shiftDo(opcode, a);
 		flagZ = false;
 		pc += 1;
 		return 4;
 	}
 
-	private int shift(SHIFTOP opcode) {
+	private int shift_HL(SHIFTOP opcode) {
 		int addr = addr(H, L);
 		mem.write(addr, (byte) shiftDo(opcode, mem.read(addr)));
 		pc += 1;
 		return 16;
 	}
 
-	private int shift(SHIFTOP opcode, byte a) {
+	private int shift_r(SHIFTOP opcode, byte a) {
 		reg[a] = (byte) shiftDo(opcode, reg[a]);
 		pc += 1;
 		return 8;
@@ -1003,7 +1712,7 @@ public class CPU {
 		return a;
 	}
 
-	private int ccf() {
+	private int ccf_() {
 		flagN = false;
 		flagH = false;
 		flagC = !flagC;
@@ -1011,7 +1720,7 @@ public class CPU {
 		return 4;
 	}
 
-	private int scf() {
+	private int scf_() {
 		flagN = false;
 		flagH = false;
 		flagC = true;
@@ -1019,7 +1728,7 @@ public class CPU {
 		return 4;
 	}
 
-	private int cpl() {
+	private int cpl_() {
 		reg[A] = (byte) ~reg[A];
 		flagN = true;
 		flagH = true;
@@ -1027,7 +1736,7 @@ public class CPU {
 		return 4;
 	}
 
-	private int addHL() {
+	private int addHL_() {
 		int c = (reg[L] += (sp & 0xFF)) > 255 ? 1 : 0;
 		int h = reg[H] + (sp >> 8) + c;
 		flagH = bool(((reg[H] & 0x0F) + ((sp >> 8) & 0x0F) + c) & 0x10);
@@ -1038,7 +1747,7 @@ public class CPU {
 		return 8;
 	}
 
-	private int addHL(int a, int b) {
+	private int addHL_rr(int a, int b) {
 		int c = (reg[L] += reg[b]) > 255 ? 1 : 0;
 		int h = reg[H] + reg[a] + c;
 		flagH = bool(((reg[H] & 0x0F) + (reg[a] & 0x0F) + c) & 0x10);
@@ -1049,7 +1758,7 @@ public class CPU {
 		return 8;
 	}
 
-	private int daa() {
+	private int daa_() {
 		if (flagN) {
 			if (flagC)
 				reg[A] -= 0x60;
@@ -1069,13 +1778,13 @@ public class CPU {
 		return 4;
 	}
 
-	private int ld_imm_sp() {
+	private int ld_imm_sp_() {
 		mem.write16(mem.read(pc + 1) + (mem.read(pc + 2) << 8), (byte) (sp >> 8), (byte) (sp & 0xFF));
 		pc += 3;
 		return 20;
 	}
 
-	private int ld_hl_spdd() {
+	private int ld_hl_spdd_() {
 		var b = signedOffset(mem.read(pc + 1));
 
 		flagH = bool(((sp & 0x0F) + (b & 0x0F)) & 0x010);
@@ -1091,7 +1800,7 @@ public class CPU {
 		return 12;
 	}
 
-	private int add_sp_n() {
+	private int add_sp_n_() {
 		var b = signedOffset(mem.read(pc + 1));
 
 		flagH = bool(((sp & 0x0F) + (b & 0x0F)) & 0x010);
@@ -1106,25 +1815,91 @@ public class CPU {
 		return 16;
 	}
 
-	private int halt() {
+	private int halt_() {
 		halted = true;
 		pc++;
 		return 4;
 	};
 
-	private int stop() {
+	private int stop_() {
 		pc += 2;
 		return 4;
 	}
-	
-	private int unused() {
+
+	private int unused_() {
 		System.err.println("UNUSED");
 		System.exit(-1);
 		return 4;
 	}
-	
+
 	private int nop() {
-		pc+=1;
+		pc += 1;
 		return 4;
+	}
+
+	private int swap_() {
+		byte a = mem.read(addr(H, L));
+		a = (byte) ((a >> 4) + ((a << 4) & 0xFF));
+		mem.write(addr(H, L), a);
+		flagZ = (a == 0);
+		flagN = false;
+		flagH = false;
+		flagC = false;
+		pc++;
+		return 16;
+	}
+
+	private int swap_r(int r) {
+		reg[r] = (byte) ((reg[r] >> 4) + ((reg[r] << 4) & 0xFF));
+		flagZ = (reg[r] == 0);
+		flagN = false;
+		flagH = false;
+		flagC = false;
+		pc++;
+		return 8;
+	}
+
+	private int bit_vHL(int b, int hl) {
+		b = (1 << b);
+		flagZ = ((mem.read(addr(H, L)) & b) == 0);
+		flagH = true;
+		flagN = false;
+		pc++;
+		return 12;
+	}
+
+	private int bit_vr(int b, int r) {
+		b = (1 << b);
+		flagZ = ((reg[r] & b) == 0);
+		flagH = true;
+		flagN = false;
+		pc++;
+		return 8;
+	}
+
+	private int set_vHL(int b, int hl) {
+		b = (1 << b);
+		mem.write(addr(H, L), (byte) (mem.read(addr(H, L)) | b));
+		pc++;
+		return 16;
+	}
+
+	private int set_vr(int b, int r) {
+		b = (1 << b);
+		reg[r] |= b;
+		pc++;
+		return 8;
+	}
+
+	private int res_vHL(int b, int hl) {
+		mem.write(addr(H, L), (byte) (mem.read(addr(H, L)) & b));
+		pc++;
+		return 16;
+	}
+
+	private int res_vr(int b, int r) {
+		reg[r] &= b;
+		pc++;
+		return 8;
 	}
 }
