@@ -1,17 +1,84 @@
 package com.mrh0.gbemu;
 
+import java.io.File;
+import java.io.IOException;
+
+import javax.swing.JFileChooser;
+import javax.swing.filechooser.FileNameExtensionFilter;
+
 import com.mrh0.gbemu.cpu.CPU;
 import com.mrh0.gbemu.cpu.Globals;
 import com.mrh0.gbemu.cpu.memory.Memory;
+import com.mrh0.gbemu.io.IO;
+import com.mrh0.gbemu.lcd.LCD;
+import com.mrh0.gbemu.lcd.Window;
 
 public class Main {
 
-	public static void main(String[] args) {
-		byte[] rom = new byte[0];
+	public static void main(String[] args) throws IOException, InterruptedException {
+		
+		Window window = createWindow();
+		
+		JFileChooser fc = new JFileChooser();
+		fc.setAcceptAllFileFilterUsed(false);
+		fc.addChoosableFileFilter(new FileNameExtensionFilter("GameBoy .gb", "gb"));
+		if(fc.showOpenDialog(window) != JFileChooser.APPROVE_OPTION) {
+			System.err.println("Invalid file selected!");
+			System.exit(0);
+		}
 		
 		Globals globals = new Globals();
-		Memory memory = new Memory(globals, 0x1000, rom);
-		CPU cpu = new CPU(memory, globals);
+		
+		byte[] rom = loadROM(fc.getSelectedFile(), globals);
+		
+		System.out.println("Loaded ROM ("+rom.length+"bytes).");
+		
+		Memory memory = new Memory(globals, 0x10000, rom);
+		
+		memory.raw()[0xFF41] = 1;
+		memory.raw()[0xFF43] = 1;
+		
+		LCD lcd = new LCD(globals);
+		
+		window.add(lcd);
+		window.pack();
+		
+		CPU cpu = new CPU(memory, lcd, globals);
+		cpu.reset();
+		
+		while(true) {
+			for(int i = 0; i < 16; i++) {
+				cpu.debug();
+				cpu.advance();
+			}
+			Thread.sleep(1);
+		}
+	}
+	
+	private static byte[] loadROM(File file, Globals globals) throws IOException {
+		byte[] rom = IO.readROM(file);
+		globals.FirstROMPage = new byte[256];
+		byte[] bootcode = parseBootcode(globals);
+		for(int i = 0; i < 256; i++) {
+			globals.FirstROMPage[i] = rom[i];
+			rom[i] = bootcode[i];
+		}
+		return rom;
+	}
+	
+	private static byte[] parseBootcode(Globals globals) {
+		String[] splt = globals.bootcode.split(" ");
+		byte[] bytes = new byte[splt.length];
+		for (int i = 0; i < splt.length; i++) {
+			bytes[i] = (byte) Integer.parseInt(splt[i], 16);
+		}
+		return bytes;
+	}
+	
+	private static Window createWindow() {
+		Window win = new Window();
+		win.setVisible(true);
+		return win;
 	}
 
 	private static void genbitsetres() {

@@ -2,16 +2,35 @@ package com.mrh0.gbemu.cpu;
 
 import com.mrh0.gbemu.cpu.memory.MemMap;
 import com.mrh0.gbemu.cpu.memory.Memory;
+import com.mrh0.gbemu.lcd.LCD;
 
 public class CPU {
 	private byte[] reg;
 	private Memory mem;
+	private LCD lcd;
 	private Globals globals;
 
-	public CPU(Memory mem, Globals globals) {
+	int[][][] pixelDecoder;
+
+	public CPU(Memory mem, LCD lcd, Globals globals) {
 		reg = new byte[8];
 		this.mem = mem;
+		this.lcd = lcd;
 		this.globals = globals;
+
+		pixelDecoder = new int[256][256][8];
+		for (var d1 = 0; d1 < 256; d1++) {
+			for (var d2 = 0; d2 < 256; d2++) {
+				pixelDecoder[d1][d2][0] = (((d1 & 128) + 2 * (d2 & 128)) >> 7);
+				pixelDecoder[d1][d2][1] = ((d1 & 64) + 2 * (d2 & 64)) >> 6;
+				pixelDecoder[d1][d2][2] = ((d1 & 32) + 2 * (d2 & 32)) >> 5;
+				pixelDecoder[d1][d2][3] = ((d1 & 16) + 2 * (d2 & 16)) >> 4;
+				pixelDecoder[d1][d2][4] = ((d1 & 8) + 2 * (d2 & 8)) >> 3;
+				pixelDecoder[d1][d2][5] = ((d1 & 4) + 2 * (d2 & 4)) >> 2;
+				pixelDecoder[d1][d2][6] = ((d1 & 2) + 2 * (d2 & 2)) >> 1;
+				pixelDecoder[d1][d2][7] = ((d1 & 1) + 2 * (d2 & 1));
+			}
+		}
 	}
 
 	private boolean flagZ = false;
@@ -33,8 +52,6 @@ public class CPU {
 	private final byte H = 0b100;
 	private final byte L = 0b101;
 
-	private final String bootcode = "31 FE FF AF 21 FF 9F 32 CB 7C 20 FB 21 26 FF 0E 11 3E 80 32 E2 0C 3E F3 E2 32 3E 77 77 3E FC E0 47 11 A8 00 21 10 80 1A CD 95 00 CD 96 00 13 7B FE 34 20 F3 11 D8 00 06 08 1A 13 22 23 05 20 F9 3E 19 EA 10 99 21 2F 99 0E 0C 3D 28 08 32 0D 20 F9 2E 0F 18 F3 67 3E 64 57 E0 42 3E 91 E0 40 04 1E 02 0E 0C F0 44 FE 90 20 FA 0D 20 F7 1D 20 F2 0E 13 24 7C 1E 83 FE 62 28 06 1E C1 FE 64 20 06 7B E2 0C 3E 87 E2 F0 42 90 E0 42 15 20 D2 05 20 4F 16 20 18 CB 4F 06 04 C5 CB 11 17 C1 CB 11 17 05 20 F5 22 23 22 23 C9 00 00 00 0D 00 09 11 09 89 39 08 C9 00 0B 00 03 00 0C CC CC 00 0F 00 00 00 00 EC CC EC CC DD DD 99 99 98 89 EE FB 67 63 6E 0E CC DD 1F 9F 88 88 00 00 00 00 00 00 00 00 21 A8 00 11 A8 00 1A 13 BE 20 FE 23 7D FE 34 20 F5 06 19 78 86 23 05 20 FB 86 20 FE 3E 01 E0 50";
-
 	private enum ALUOP {
 		ADD, ADC, SUB, SBC, AND, OR, XOR, CP
 	}
@@ -45,13 +62,48 @@ public class CPU {
 
 	// Main:
 
-	private byte[] parseBootcode() {
-		String[] splt = bootcode.split(" ");
-		byte[] bytes = new byte[splt.length];
-		for (int i = 0; i < splt.length; i++) {
-			bytes[i] = (byte) Integer.parseInt(splt[i]);
+	public void debug() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("|pc:" + hex8(mem.read(pc)) + "@" + Integer.toHexString(pc) + "|sp:" + Integer.toHexString(sp) + "("
+				+ hex8(mem.read(sp + 1)) + "" + hex8(mem.read(sp)) + ")" + "|");
+		sb.append("A:" + hex8(reg[A]) + "|");
+		sb.append("B:" + hex8(reg[B]) + "|");
+		sb.append("C:" + hex8(reg[C]) + "|");
+		sb.append("D:" + hex8(reg[D]) + "|");
+		sb.append("E:" + hex8(reg[E]) + "|");
+		sb.append("H:" + hex8(reg[H]) + "|");
+		sb.append("L:" + hex8(reg[L]) + "|");
+		sb.append("(");
+		sb.append(flagZ ? "Z" : "-");
+		sb.append(flagN ? "N" : "-");
+		sb.append(flagH ? "H" : "-");
+		sb.append(flagC ? "C" : "-");
+		sb.append(")");
+		System.out.println(sb.toString());
+		
+		if(pc>256) {
+			System.out.println("Booted");
+			System.exit(0);
 		}
-		return bytes;
+	}
+
+	public void reset() {
+		globals.init();
+		ime = false;
+		halted = false;
+		pc = 0;
+		sp = 0;
+	}
+
+	private int[] grabTile(int n, int offset, boolean tileSigned) {
+		int tileptr;
+		if (tileSigned && n > 127) {
+			tileptr = offset + (n - 256) * 16;
+		} else {
+			tileptr = offset + n * 16;
+		}
+		int d1 = mem.raw()[tileptr], d2 = mem.raw()[tileptr + 1];
+		return pixelDecoder[d1][d2];
 	}
 
 	public int advance() {
@@ -75,6 +127,244 @@ public class CPU {
 					halted = false;
 				}
 			}
+		}
+
+		if (globals.LCD_enabled) {
+			globals.LCD_scan += cycles;
+
+			int mode = 0;
+			boolean coincidence = false;
+			boolean draw = false;
+			if (globals.LCD_scan <= 80)
+				mode = 2;
+			else if (globals.LCD_scan <= 252)
+				mode = 3;
+			else if (globals.LCD_scan < 456) {
+				draw = (globals.LCD_lastmode != 0);
+				mode = 0;
+			} else {
+				mode = 2;
+				globals.LCD_scan -= 456;
+				mem.raw()[0xFF44]++;
+				if (mem.raw()[0xFF44] > 153)
+					mem.raw()[0xFF44] = 0;
+				coincidence = (mem.raw()[0xFF44] == mem.raw()[0xFF45]);
+			}
+
+			if (mem.raw()[0xFF44] >= 144)
+				mode = 1; // vblank
+			else if (draw) {
+				// Draw scanline
+				var LY = mem.raw()[0xFF44];
+				var dpy = LY * 160;
+
+				boolean drawWindow = bool(mem.raw()[0xFF40] & (1 << 5)) && LY >= mem.raw()[0xFF4A];
+				int bgStopX = drawWindow ? mem.raw()[0xFF4B] - 7 : 160;
+
+				// FF40 - LCDC - LCD Control (R/W)
+				//
+				// Bit 7 - LCD Display Enable (0=Off, 1=On)
+				// Bit 6 - Window Tile Map Display Select (0=9800-9BFF, 1=9C00-9FFF)
+				// Bit 5 - Window Display Enable (0=Off, 1=On)
+				// Bit 4 - BG & Window Tile Data Select (0=8800-97FF, 1=8000-8FFF)
+				// Bit 3 - BG Tile Map Display Select (0=9800-9BFF, 1=9C00-9FFF)
+				// Bit 2 - OBJ (Sprite) Size (0=8x8, 1=8x16)
+				// Bit 1 - OBJ (Sprite) Display Enable (0=Off, 1=On)
+				// Bit 0 - BG Display (for CGB see below) (0=Off, 1=On)
+
+				int baseTileOffset;
+				boolean tileSigned;
+				// Tile Data Select
+				if (bool(mem.raw()[0xFF40] & (1 << 4))) {
+					baseTileOffset = 0x8000;
+					tileSigned = false;
+				} else {
+					baseTileOffset = 0x9000;
+					tileSigned = true;
+				}
+				int[] bgpalette = { (mem.raw()[0xFF47]) & 3, (mem.raw()[0xFF47] >> 2) & 3, (mem.raw()[0xFF47] >> 4) & 3,
+						(mem.raw()[0xFF47] >> 6) & 3 };
+
+				if (bool(mem.raw()[0xFF40] & 1)) { // BG enabled
+					// BG Tile map display select
+					int bgTileMapAddr = bool(mem.raw()[0xFF40] & (1 << 3)) ? 0x9C00 : 0x9800;
+
+					// scy FF42
+					// scx FF43
+					// scanline number FF44
+					// pixel row = FF44 + FF42
+					// tile row = pixel row >> 3
+					// 32 bytes per row
+					// pixel column = FF43
+					// tile column = pixel column >> 3
+
+					int x = mem.raw()[0xFF43] >> 3;
+					int xoff = mem.raw()[0xFF43] & 7;
+					int y = (LY + mem.raw()[0xFF42]) & 0xFF;
+
+					// Y doesn't change throughout a scanline
+					bgTileMapAddr += (~~(y / 8)) * 32;
+					int tileOffset = baseTileOffset + (y & 7) * 2;
+
+					int[] pix = grabTile(mem.raw()[bgTileMapAddr + x], tileOffset, tileSigned);
+
+					for (int i = 0; i < bgStopX; i++) {
+						lcd.raw()[dpy + i] = (byte) bgpalette[pix[xoff++]];
+
+						if (xoff == 8) {
+							x = (x + 1) & 0x1F; // wrap horizontally in tile map
+
+							pix = grabTile(mem.raw()[bgTileMapAddr + x], tileOffset, tileSigned);
+							xoff = 0;
+						}
+
+					}
+				}
+
+				// FF4A - WY
+				// FF4B - WX
+
+				if (drawWindow) { // Window display enable
+					// Window Tile map display select
+					int wdTileMapAddr = bool(mem.raw()[0xFF40] & (1 << 6)) ? 0x9C00 : 0x9800;
+
+					int xoff = 0;
+					int y = LY - mem.raw()[0xFF4A];
+
+					wdTileMapAddr += (~~(y / 8)) * 32;
+					int tileOffset = baseTileOffset + (y & 7) * 2;
+
+					int[] pix = grabTile(mem.raw()[wdTileMapAddr], tileOffset, tileSigned);
+
+					for (int i = Math.max(0, bgStopX); i < 160; i++) {
+						lcd.raw()[dpy + i] = (byte) bgpalette[pix[xoff++]];
+						if (xoff == 8) {
+							pix = grabTile(mem.raw()[++wdTileMapAddr], tileOffset, tileSigned);
+							xoff = 0;
+						}
+					}
+
+				}
+
+				if (bool(mem.raw()[0xFF40] & 2)) { // Sprite display enabled
+
+					// Render sprites
+					int height, tileNumMask;
+					if (bool(mem.raw()[0xFF40] & (1 << 2))) {
+						height = 16;
+						tileNumMask = 0xFE; // in 8x16 mode, lowest bit of tile number is ignored
+					} else {
+						height = 8;
+						tileNumMask = 0xFF;
+					}
+
+					int[] OBP0 = { 0, (mem.raw()[0xFF48] >> 2) & 3, (mem.raw()[0xFF48] >> 4) & 3,
+							(mem.raw()[0xFF48] >> 6) & 3 };
+					int[] OBP1 = { 0, (mem.raw()[0xFF49] >> 2) & 3, (mem.raw()[0xFF49] >> 4) & 3,
+							(mem.raw()[0xFF49] >> 6) & 3 };
+					int background = bgpalette[0];
+
+					// OAM 4 bytes per sprite, 40 sprites
+					for (int i = 0xFE9C; i >= 0xFE00; i -= 4) {
+						int ypos = mem.raw()[i] - 16 + height;
+						if (LY >= ypos - height && LY < ypos) {
+
+							int tileNum = 0x8000 + (mem.raw()[i + 2] & tileNumMask) * 16;
+							int xpos = mem.raw()[i + 1];
+							int att = mem.raw()[i + 3];
+
+							// Bit7 OBJ-to-BG Priority (0=OBJ Above BG, 1=OBJ Behind BG color 1-3)
+							// (Used for both BG and Window. BG color 0 is always behind OBJ)
+							// Bit6 Y flip (0=Normal, 1=Vertically mirrored)
+							// Bit5 X flip (0=Normal, 1=Horizontally mirrored)
+							// Bit4 Palette number **Non CGB Mode Only** (0=OBP0, 1=OBP1)
+
+							int[] palette = bool(att & (1 << 4)) ? OBP1 : OBP0;
+							boolean behind = bool(att & (1 << 7));
+
+							if (bool(att & (1 << 6))) { // Y flip
+								tileNum += (ypos - LY - 1) * 2;
+							} else {
+								tileNum += (LY - ypos + height) * 2;
+							}
+							int d1 = mem.raw()[tileNum];
+							int d2 = mem.raw()[tileNum + 1];
+							int[] row = pixelDecoder[d1][d2];
+
+							if (bool(att & (1 << 5))) { // x flip
+								if (behind) {
+									for (var j = 0; j < Math.min(xpos, 8); j++) {
+										if (lcd.raw()[dpy + xpos - 1 - j] == background && bool(row[j]))
+											lcd.raw()[dpy + xpos - 1 - j] = (byte) palette[row[j]];
+									}
+								} else {
+									for (var j = 0; j < Math.min(xpos, 8); j++) {
+										if (bool(row[j]))
+											lcd.raw()[dpy + xpos - (j + 1)] = (byte) palette[row[j]];
+									}
+								}
+							} else {
+								if (behind) {
+									for (var j = Math.max(8 - xpos, 0); j < 8; j++) {
+										if (lcd.raw()[dpy + xpos - 8 + j] == background && bool(row[j]))
+											lcd.raw()[dpy + xpos - 8 + j] = (byte) palette[row[j]];
+									}
+								} else {
+									for (var j = Math.max(8 - xpos, 0); j < 8; j++) {
+										if (bool(row[j]))
+											lcd.raw()[dpy + xpos - 8 + j] = (byte) palette[row[j]];
+									}
+								}
+							}
+
+						}
+					}
+
+				}
+
+			}
+
+			// 0xFF41 - LCDC Status
+			// Bit 6 - LYC=LY Coincidence Interrupt (1=Enable) (Read/Write)
+			// Bit 5 - Mode 2 OAM Interrupt (1=Enable) (Read/Write)
+			// Bit 4 - Mode 1 V-Blank Interrupt (1=Enable) (Read/Write)
+			// Bit 3 - Mode 0 H-Blank Interrupt (1=Enable) (Read/Write)
+			// Bit 2 - Coincidence Flag (0:LYC<>LY, 1:LYC=LY) (Read Only)
+
+			if (coincidence) {
+				if (bool(mem.raw()[0xFF41] & (1 << 6))) { // coincidence interrupt enabled
+					mem.raw()[0xFF0F] |= 1 << 1; // LCD STAT Interrupt flag
+					mem.raw()[0xFF41] |= 1 << 2; // coincidence flag
+				}
+			} else
+				mem.raw()[0xFF41] &= 0xFB;// ~(1<<2)
+			if (globals.LCD_lastmode != mode) { // Mode change
+				if (mode == 0) {
+					if (bool(mem.raw()[0xFF41] & (1 << 3)))
+						mem.raw()[0xFF0F] |= 1 << 1;
+				} else if (mode == 1) {
+
+					// LCD STAT interrupt on v-blank
+					if (bool(mem.raw()[0xFF41] & (1 << 4)))
+						mem.raw()[0xFF0F] |= 1 << 1;
+
+					// Main V-Blank interrupt
+					if (bool(mem.raw()[0xFFFF] & 1))
+						mem.raw()[0xFF0F] |= 1 << 0;
+
+					// renderDisplayCanvas(); mrh0: what it do?
+					lcd.update();
+
+				} else if (mode == 2) {
+					if (bool(mem.raw()[0xFF41] & (1 << 5)))
+						mem.raw()[0xFF0F] |= 1 << 1;
+				}
+
+				mem.raw()[0xFF41] &= 0xF8;
+				mem.raw()[0xFF41] += mode;
+				globals.LCD_lastmode = mode;
+			}
+
 		}
 
 		if (ime) {
@@ -104,7 +394,7 @@ public class CPU {
 	}
 
 	public int operation(int opcode) {
-		switch (opcode) {
+		switch (opcode & 0xFF) {
 		case 0x00:
 			return nop();
 		case 0x01:
@@ -207,7 +497,7 @@ public class CPU {
 		case 0x30:
 			return jrNC_();
 		case 0x31:
-			return ld16__I();
+			return ld16_I();
 		case 0x32:
 			return ldd_HLA();
 		case 0x33:
@@ -641,6 +931,7 @@ public class CPU {
 		case 0xFF:
 			return rst_v(0x38);
 		}
+		System.out.println("Unknown Op: " + hex8(opcode));
 		return -1;
 	}
 
@@ -1163,8 +1454,8 @@ public class CPU {
 			return res_vr(7, 7);
 		case 0xFF:
 			return set_vr(7, 7);
-
 		}
+		System.err.println("Unknown CB: " + hex8(opcode));
 		return -1;
 	}
 
@@ -1185,16 +1476,20 @@ public class CPU {
 		return b > 0;
 	}
 
+	private String hex8(int h) {
+		return ((h & 0xFF) < 0x10 ? "0" : "") + Integer.toHexString(h & 0xFF).toUpperCase();
+	}
+
 	// ALU:
 
 	private int alu_I(ALUOP opcode) {
-		reg[A] = ALUdo(opcode, mem.read(pc + 1));
+		reg[A] = ALUdo(opcode, mem.read(pc + 1)&0xFF);
 		pc += 2;
 		return 8;
 	}
 
 	private int alu_HL(ALUOP opcode) {
-		reg[A] = ALUdo(opcode, mem.read(addr(H, L)));
+		reg[A] = ALUdo(opcode, mem.read(addr(H, L))&0xFF);
 		pc += 1;
 		return 8;
 	}
@@ -1268,7 +1563,7 @@ public class CPU {
 	}
 
 	private int ldFromMem_rI(int a) {
-		reg[a] = mem.read(mem.read(pc + 1) + (mem.read(pc + 2) << 8));
+		reg[a] = mem.read(mem.read(pc + 1)&0xFF + (mem.read(pc + 2) << 8));
 		pc += 3;
 		return 16;
 	}
@@ -1280,7 +1575,7 @@ public class CPU {
 	}
 
 	private int ldToMem_Ir(int b) {
-		mem.write(mem.read(pc + 1) + (mem.read(pc + 2) << 8), reg[b]);
+		mem.write(mem.read(pc + 1)&0xFF + (mem.read(pc + 2) << 8), reg[b]);
 		pc += 3;
 		return 16;
 	}
@@ -1297,16 +1592,16 @@ public class CPU {
 		return 8;
 	}
 
-	private int ld16_HLI() { // Where????
-		int addr = mem.read(pc + 1) + (mem.read(pc + 2) << 8);
+	private int ld16_HLI() { // TODO: Where????
+		int addr = mem.read(pc + 1)&0xFF + (mem.read(pc + 2) << 8);
 		reg[H] = mem.read(addr + 1);
 		reg[L] = mem.read(addr);
 		pc += 3;
 		return 12;
 	}
 
-	private int ld16__I() {
-		sp = mem.read(pc + 1) + (mem.read(pc + 2) << 8);
+	private int ld16_I() {
+		sp = (mem.read(pc + 1)&0xFF + (mem.read(pc + 2) << 8))&0xFFFF;
 		pc += 3;
 		return 12;
 	}
@@ -1416,11 +1711,11 @@ public class CPU {
 	}
 
 	private byte offset(byte a, int offset) {
-		byte res = (byte) (a + offset);
+		int res = (a + offset);
 		flagH = (((a & 0x0F) + offset) & 0x10) > 0;
 		flagN = offset == -1;
 		flagZ = ((res & 0xff) == 0);
-		return res;
+		return (byte) res;
 	}
 
 	private int inc16_() {
@@ -1506,7 +1801,7 @@ public class CPU {
 			pc += 3;
 			return 12;
 		}
-		pc = mem.read(pc + 1) + (mem.read(pc + 2) << 8);
+		pc = mem.read(pc + 1)&0xFF + (mem.read(pc + 2) << 8);
 		return 16;
 	}
 
@@ -1515,7 +1810,7 @@ public class CPU {
 			pc += 3;
 			return 12;
 		}
-		pc = mem.read(pc + 1) + (mem.read(pc + 2) << 8);
+		pc = mem.read(pc + 1)&0xFF + (mem.read(pc + 2) << 8);
 		return 16;
 	}
 
@@ -1524,7 +1819,7 @@ public class CPU {
 			pc += 3;
 			return 12;
 		}
-		pc = mem.read(pc + 1) + (mem.read(pc + 2) << 8);
+		pc = mem.read(pc + 1)&0xFF + (mem.read(pc + 2) << 8);
 		return 16;
 	}
 
@@ -1533,7 +1828,7 @@ public class CPU {
 			pc += 3;
 			return 12;
 		}
-		pc = mem.read(pc + 1) + (mem.read(pc + 2) << 8);
+		pc = mem.read(pc + 1)&0xFF + (mem.read(pc + 2) << 8);
 		return 16;
 	}
 
@@ -1554,6 +1849,8 @@ public class CPU {
 		sp -= 2;
 		mem.write16(sp, reg[a], reg[b]);
 		pc += 1;
+		System.out.println("PUSH1 " + hex8(reg[a]) + hex8(reg[b]) + ":" + Integer.toHexString(sp));
+		System.out.println("PUSH2 " + hex8(mem.raw()[sp+1]) + hex8(mem.raw()[sp]) + ":" + Integer.toHexString(sp));
 		return 16;
 	}
 
@@ -1572,16 +1869,24 @@ public class CPU {
 	private int pop_rr(int a, int b) {
 		reg[a] = mem.read(sp + 1);
 		reg[b] = mem.read(sp);
+		
+		System.out.println("POP " + hex8(reg[a]) + hex8(reg[b]) + ":" + Integer.toHexString(sp));
+		
 		sp += 2;
 		pc += 1;
+		
 		return 12;
 	}
 
 	private int call_() {
 		sp -= 2;
-		var npc = pc + 3;
+		int npc = pc + 3;
 		mem.write16(sp, (byte) (npc >> 8), (byte) (npc & 0xFF));
-		pc = mem.read(pc + 1) + (mem.read(pc + 2) << 8);
+		// System.out.println(Integer.toHexString(mem.read(pc + 1)) + "|" +
+		// Integer.toHexString(mem.read(pc + 2)) + "|" + Integer.toHexString(mem.read(pc
+		// + 2)<<8));
+		pc = (mem.read(pc + 1) & 0xFF + (mem.read(pc + 2) << 8));
+
 		return 24;
 	}
 
@@ -1618,8 +1923,9 @@ public class CPU {
 	}
 
 	private int ret_() {
+		pc = ((mem.read(sp + 1) << 8) + mem.read(sp))&0xFFFF;
+		System.out.println("RET " + hex8(mem.read(sp + 1)) + ":" + hex8(mem.read(sp)) + ":" + Integer.toHexString(pc));
 		sp += 2;
-		pc = (mem.read(sp + 1) << 8) + mem.read(sp);
 		return 16;
 	}
 
@@ -1681,7 +1987,7 @@ public class CPU {
 		sp -= 2;
 		int npc = pc + 1;
 		mem.write16(sp, (byte) (npc >> 8), (byte) (npc & 0xFF));
-		pc = a;
+		pc = a & 0xFFFF;
 		return 16;
 	}
 
@@ -1813,7 +2119,7 @@ public class CPU {
 	}
 
 	private int ld_imm_sp_() {
-		mem.write16(mem.read(pc + 1) + (mem.read(pc + 2) << 8), (byte) (sp >> 8), (byte) (sp & 0xFF));
+		mem.write16(mem.read(pc + 1)&0xFF + (mem.read(pc + 2) << 8), (byte) (sp >> 8), (byte) (sp & 0xFF));
 		pc += 3;
 		return 20;
 	}
