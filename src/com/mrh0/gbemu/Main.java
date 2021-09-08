@@ -16,7 +16,7 @@ import com.mrh0.gbemu.lcd.Window;
 public class Main {
 
 	public static void main(String[] args) throws IOException, InterruptedException {
-		
+
 		Window window = createWindow();
 		
 		JFileChooser fc = new JFileChooser();
@@ -47,7 +47,7 @@ public class Main {
 		cpu.reset();
 		
 		while(true) {
-			for(int i = 0; i < 16; i++) {
+			for(int i = 0; i < 256; i++) {
 				cpu.debug();
 				cpu.advance();
 			}

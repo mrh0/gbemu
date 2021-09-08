@@ -19,6 +19,9 @@ public class Memory {
 
 	public byte read(int addr) {
 		addr &= 0xFFFF;
+		if(addr >= 0x00A8 && addr < 0x00D8) {
+			System.out.println("LOGO READ " + Integer.toHexString(addr) + ":" + Integer.toHexString(rom[addr]));
+		}
 		if (addr <= 0x3FFF)
 			return rom[addr];
 		if (addr <= 0x7FFF)
@@ -36,6 +39,10 @@ public class Memory {
 				return globals.buttons;
 			else
 				return (byte) 0xFF;
+		}
+		if(addr == 0xFF44) {
+			//System.out.println("Read: wait for frame - " + mem[0xFF44]);
+			//return (byte) 0x90;
 		}
 		return mem[addr];
 	}

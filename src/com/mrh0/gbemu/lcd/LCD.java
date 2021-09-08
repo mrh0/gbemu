@@ -41,7 +41,7 @@ public class LCD extends JPanel {
 	@Override
 	protected void paintComponent(Graphics gfx) {
 		Graphics2D g = (Graphics2D) gfx;
-		super.paintComponent(g);
+		super.paintComponent(g); // Not needed (i think)
 		
 		for(int i = 0; i < SIZE; i++) {
 			g.setColor(colors[pixels[i]]);
@@ -50,6 +50,14 @@ public class LCD extends JPanel {
 	}
 
 	public void update() {
+		System.out.println("LCD update");
 		this.repaint();
+		/*try {
+			Thread.sleep(10000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		System.exit(0);*/
 	}
 }
