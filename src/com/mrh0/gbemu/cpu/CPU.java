@@ -63,16 +63,18 @@ public class CPU {
 	// Main:
 
 	public void debug() {
+		int flags = (num(flagC)*0x10 + num(flagH)*0x20 + num(flagN)*0x40 + num(flagZ)*0x80)&0xFF;
 		StringBuilder sb = new StringBuilder();
 		sb.append("|pc:" + hex8(mem.read(pc)) + "@" + Integer.toHexString(pc) + "|sp:" + Integer.toHexString(sp) + "("
 				+ hex8(mem.read(sp + 1)) + "" + hex8(mem.read(sp)) + ")" + "|");
-		sb.append("A:" + hex8(reg[A]) + "|");
-		sb.append("B:" + hex8(reg[B]) + "|");
-		sb.append("C:" + hex8(reg[C]) + "|");
-		sb.append("D:" + hex8(reg[D]) + "|");
-		sb.append("E:" + hex8(reg[E]) + "|");
-		sb.append("H:" + hex8(reg[H]) + "|");
-		sb.append("L:" + hex8(reg[L]) + "|");
+		sb.append("AF:" + hex8(reg[A]));
+		sb.append(hex8(flags) + "|");
+		sb.append("BC:" + hex8(reg[B]));
+		sb.append(hex8(reg[C]) + "|");
+		sb.append("DE:" + hex8(reg[D]));
+		sb.append(hex8(reg[E]) + "|");
+		sb.append("HL:" + hex8(reg[H]));
+		sb.append(hex8(reg[L]) + "|");
 		sb.append("(");
 		sb.append(flagZ ? "Z" : "-");
 		sb.append(flagN ? "N" : "-");
@@ -81,8 +83,15 @@ public class CPU {
 		sb.append(")");
 		System.out.println(sb.toString());
 		
-		if(pc>256) {
+		if(pc>=0x233) {
+			
 			//System.out.println("Booted");
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			//System.exit(0);
 		}
 	}
@@ -351,7 +360,7 @@ public class CPU {
 						mem.raw()[0xFF0F] |= 1 << 0;
 
 					// renderDisplayCanvas(); mrh0: what it do?
-					lcd.update();
+					lcd.update(pc);
 
 				} else if (mode == 2) {
 					if (bool((mem.raw()[0xFF41]&0xFF) & (1 << 5)))
@@ -1459,10 +1468,16 @@ public class CPU {
 
 	// Helpers:
 	private int addr(int a, int b) {
-		System.out.println("ADDR " + hex8(reg[a]) + ":" + hex8(reg[b]) + "=" + ((((reg[a]&0xFF) << 8) | (reg[b]&0xFF))&0xFFFF));
+		//System.out.println("ADDR " + hex8(reg[a]) + ":" + hex8(reg[b]) + "=" + ((((reg[a]&0xFF) << 8) | (reg[b]&0xFF))&0xFFFF));
+		String s = hex(reg[a]&0xFF, 2)+hex(reg[b]&0xFF, 2);
+		if(!s.equals(hex((((reg[a]&0xFF) << 8) | (reg[b]&0xFF))&0xFFFF, 4))) {
+			System.err.println("ADDR " + s + "=" + hex((((reg[a]&0xFF) << 8) | (reg[b]&0xFF))&0xFFFF, 4));
+			System.exit(a);
+		}
+			
 		return (((reg[a]&0xFF) << 8) | (reg[b]&0xFF))&0xFFFF;
 	}
-
+	
 	private int num(boolean b) {
 		return b ? 1 : 0;
 	}
@@ -1477,6 +1492,14 @@ public class CPU {
 
 	private String hex8(int h) {
 		return ((h & 0xFF) < 0x10 ? "0" : "") + Integer.toHexString(h & 0xFF).toUpperCase();
+	}
+	
+	private String hex(int h, int l) {
+		String r = Integer.toHexString(h).toUpperCase();
+		for(int i = r.length(); i<l; i++) {
+			r = "0"+r;
+		}
+		return r;
 	}
 
 	// ALU:
@@ -1494,28 +1517,28 @@ public class CPU {
 	}
 
 	private int alu_rr(ALUOP opcode, int a, int b) {
-		reg[a] = ALUdo(opcode, reg[b]);
+		reg[a] = ALUdo(opcode, reg[b]&0xFF);
 		pc += 1;
 		return 4;
 	}
 
 	private byte ALUdo(ALUOP opcode, int value) {
-		byte res = reg[A];
+		byte res = (byte) (reg[A]&0xFF);
 		flagN = false;
 
 		switch (opcode) {
 		case ADD: // Add
-			flagH = (((reg[A] & 0x0F) + (value & 0x0F)) & 0x10) > 0;
+			flagH = bool(((reg[A] & 0x0F) + (value & 0x0F)) & 0x10);
 			res += value;
 			break;
 		case ADC:
-			flagH = (((reg[A] & 0x0F) + (value & 0x0F) + num(flagC)) & 0x10) > 0;
+			flagH = bool(((reg[A] & 0x0F) + (value & 0x0F) + num(flagC)) & 0x10);
 			res += value + num(flagC);
 			break;
 		case SUB:
 			res -= value;
 			flagN = true;
-			flagH = (((reg[A] & 0x0F) - (value & 0x0F)) & 0x10) > 0;
+			flagH = bool(((reg[A] & 0x0F) - (value & 0x0F)) & 0x10);
 			break;
 		case CP:
 			res -= value;
@@ -1523,7 +1546,7 @@ public class CPU {
 			flagH = (((reg[A] & 0x0F) - (value & 0x0F)) & 0x10) > 0;
 			flagZ = (res & 0xFF) == 0;
 			flagC = res > 255 || res < 0;
-			return reg[A];
+			return (byte) (reg[A]&0xFF);
 		case SBC:
 			res -= value + num(flagC);
 			flagN = true;
@@ -1562,7 +1585,7 @@ public class CPU {
 	}
 
 	private int ldFromMem_rI(int a) {
-		reg[a] = mem.read(mem.read(pc + 1)&0xFF + ((mem.read(pc + 2)&0xFF) << 8));
+		reg[a] = mem.read(mem.read(pc + 1)&0xFF | ((mem.read(pc + 2)&0xFF) << 8)); // + -> |
 		pc += 3;
 		return 16;
 	}
@@ -1574,7 +1597,7 @@ public class CPU {
 	}
 
 	private int ldToMem_Ir(int b) {
-		mem.write(mem.read(pc + 1)&0xFF + ((mem.read(pc + 2)&0xFF) << 8), reg[b]);
+		mem.write((mem.read(pc + 1)&0xFF) | ((mem.read(pc + 2)&0xFF) << 8), (byte) (reg[b]&0xFF));// + -> |
 		pc += 3;
 		return 16;
 	}
@@ -1586,13 +1609,13 @@ public class CPU {
 	}
 
 	private int ldToMem_rrr(int a, int b, int c) {
-		mem.write(addr(a, b)&0xFFFF, reg[c]);
+		mem.write(addr(a, b)&0xFFFF, (byte) (reg[c]&0xFF));
 		pc += 1;
 		return 8;
 	}
 
 	private int ld16_HLI() { // TODO: Where????
-		int addr = (mem.read(pc + 1)&0xFF + ((mem.read(pc + 2)&0xFF) << 8))&0xFFFF;
+		int addr = ((mem.read(pc + 1)&0xFF) | ((mem.read(pc + 2)&0xFF) << 8))&0xFFFF;// + -> |
 		reg[H] = mem.read(addr + 1);
 		reg[L] = mem.read(addr);
 		pc += 3;
@@ -1619,8 +1642,8 @@ public class CPU {
 	}
 
 	private int ldd_HLA() {
-		mem.write(addr(H, L), reg[A]);
-		if (reg[L] == 0)
+		mem.write(addr(H, L), (byte) (reg[A]&0xFF));
+		if ((reg[L]&0xFF) == 0)
 			reg[H]--;
 		reg[L]--;
 
@@ -1631,7 +1654,7 @@ public class CPU {
 	private int ldd_AHL() {
 		reg[A] = (byte) (mem.read(addr(H, L)&0xFFFF)&0xFF);
 
-		if (reg[L] == 0)
+		if ((reg[L]&0xFF) == 0)
 			reg[H]--;
 		reg[L]--;
 
@@ -1640,9 +1663,9 @@ public class CPU {
 	}
 
 	private int ldi_HLA() {
-		mem.write(addr(H, L)&0xFFFF, reg[A]);
+		mem.write(addr(H, L)&0xFFFF, (byte) (reg[A]&0xFF));
 
-		if (reg[L] == 255)
+		if ((reg[L]&0xFF) == 255)
 			reg[H]++;
 		reg[L]++;
 
@@ -1653,7 +1676,7 @@ public class CPU {
 	private int ldi_AHL() {
 		reg[A] = (byte) (mem.read(addr(H, L)&0xFFFF)&0xFF);
 
-		if (reg[L] == 255)
+		if ((reg[L]&0xFF) == 255)
 			reg[H]++;
 		reg[L]++;
 
@@ -1662,13 +1685,13 @@ public class CPU {
 	}
 
 	private int ldc_AC() {
-		reg[A] = (byte) (mem.read(MemMap.IO.start + reg[C])&0xFF);
+		reg[A] = (byte) (mem.read(MemMap.IO.start + (reg[C]&0xFF))&0xFF);
 		pc += 1;
 		return 8;
 	}
 
 	private int ldc_CA() {
-		mem.write(MemMap.IO.start + reg[C], reg[A]);
+		mem.write(MemMap.IO.start + (reg[C]&0xFF), (byte) (reg[A]&0xFF));
 		pc += 1;
 		return 8;
 	}
@@ -1680,38 +1703,38 @@ public class CPU {
 	}
 
 	private int ldh_IA() {
-		mem.write(MemMap.IO.start + (mem.read(pc + 1)&0xFF), reg[A]);
+		mem.write(MemMap.IO.start + (mem.read(pc + 1)&0xFF), (byte) (reg[A]&0xFF));
 		pc += 2;
 		return 12;
 	}
 
 	private int inc_HL() {
-		mem.write(addr(H, L), offset((byte) (mem.read(addr(H, L)&0xFFFF)&0xFF), 1));
+		mem.write(addr(H, L)&0xFFFF, offset((byte) (mem.read(addr(H, L)&0xFFFF)&0xFF), 1));
 		pc += 1;
 		return 12;
 	}
 
 	private int dec_HL() {
-		mem.write(addr(H, L), offset((byte) (mem.read(addr(H, L)&0xFFFF)&0xFF), -1));
+		mem.write(addr(H, L)&0xFFFF, offset((byte) (mem.read(addr(H, L)&0xFFFF)&0xFF), -1));
 		pc += 1;
 		return 12;
 	}
 
 	private int inc_r(int a) {
-		reg[a] = offset(reg[a], 1);
+		reg[a] = offset((byte) (reg[a]&0xFF), 1);
 		pc += 1;
 		return 4;
 	}
 
 	private int dec_r(int a) {
-		reg[a] = offset(reg[a], -1);
+		reg[a] = offset((byte) (reg[a]&0xFF), -1);
 		pc += 1;
 		return 4;
 	}
 
 	private byte offset(byte a, int offset) {
 		int res = (a + offset);
-		flagH = (((a & 0x0F) + offset) & 0x10) > 0;
+		flagH = bool(((a & 0x0F) + offset) & 0x10);
 		flagN = offset == -1;
 		flagZ = ((res & 0xff) == 0);
 		return (byte) res;
@@ -1724,7 +1747,7 @@ public class CPU {
 	}
 
 	private int inc16_rr(int a, int b) {
-		if (reg[b] == 255)
+		if ((reg[b]&0xFF) == 255)
 			reg[a]++;
 		reg[b]++;
 		pc++;
@@ -1738,7 +1761,7 @@ public class CPU {
 	}
 
 	private int dec16_rr(int a, int b) {
-		if (reg[b] == 0)
+		if ((reg[b]&0xFF) == 0)
 			reg[a]--;
 		reg[b]--;
 		pc++;
@@ -1791,7 +1814,7 @@ public class CPU {
 	}
 
 	private int jp_() { // unconditional absolute
-		pc = mem.read(pc + 1) + ((mem.read(pc + 2)&0xFF) << 8);
+		pc = (mem.read(pc + 1)&0xFF) | ((mem.read(pc + 2)&0xFF) << 8);// + -> |
 		return 16;
 	}
 
@@ -1800,7 +1823,7 @@ public class CPU {
 			pc += 3;
 			return 12;
 		}
-		pc = mem.read(pc + 1)&0xFF + ((mem.read(pc + 2)&0xFF) << 8);
+		pc = (mem.read(pc + 1)&0xFF) | ((mem.read(pc + 2)&0xFF) << 8);// + -> |
 		return 16;
 	}
 
@@ -1809,7 +1832,7 @@ public class CPU {
 			pc += 3;
 			return 12;
 		}
-		pc = mem.read(pc + 1)&0xFF + ((mem.read(pc + 2)&0xFF) << 8);
+		pc = (mem.read(pc + 1)&0xFF) | ((mem.read(pc + 2)&0xFF) << 8);// + -> |
 		return 16;
 	}
 
@@ -1818,7 +1841,7 @@ public class CPU {
 			pc += 3;
 			return 12;
 		}
-		pc = mem.read(pc + 1)&0xFF + ((mem.read(pc + 2)&0xFF) << 8);
+		pc = (mem.read(pc + 1)&0xFF) | ((mem.read(pc + 2)&0xFF) << 8);// + -> |
 		return 16;
 	}
 
@@ -1827,7 +1850,7 @@ public class CPU {
 			pc += 3;
 			return 12;
 		}
-		pc = mem.read(pc + 1)&0xFF + ((mem.read(pc + 2)&0xFF) << 8);
+		pc = (mem.read(pc + 1)&0xFF) | ((mem.read(pc + 2)&0xFF) << 8);// + -> |
 		return 16;
 	}
 
@@ -1839,7 +1862,7 @@ public class CPU {
 	private int push_() {
 		byte flags = (byte) ((num(flagZ) << 7) + (num(flagN) << 6) + (num(flagH) << 5) + (num(flagC) << 4));
 		sp -= 2;
-		mem.write16(sp, reg[A], flags);
+		mem.write16(sp, (byte) (reg[A]&0xFF), flags);
 		pc += 1;
 		return 16;
 	}
@@ -1883,7 +1906,7 @@ public class CPU {
 		// System.out.println(Integer.toHexString(mem.read(pc + 1)) + "|" +
 		// Integer.toHexString(mem.read(pc + 2)) + "|" + Integer.toHexString(mem.read(pc
 		// + 2)<<8));
-		pc = ((mem.read(pc + 1) & 0xFF) + ((mem.read(pc + 2)&0xFF) << 8));
+		pc = ((mem.read(pc + 1) & 0xFF) | ((mem.read(pc + 2)&0xFF) << 8));// + -> |
 
 		return 24;
 	}
@@ -1984,7 +2007,7 @@ public class CPU {
 	private int rst_v(int a) {
 		sp -= 2;
 		int npc = pc + 1;
-		mem.write16(sp, (byte) (npc >> 8), (byte) (npc & 0xFF));
+		mem.write16(sp&0xFFFF, (byte) (npc >> 8), (byte) (npc & 0xFF));
 		pc = a & 0xFFFF;
 		return 16;
 	}
@@ -1998,7 +2021,7 @@ public class CPU {
 
 	private int shift_HL(SHIFTOP opcode) {
 		int addr = addr(H, L);
-		mem.write(addr, (byte) shiftDo(opcode, mem.read(addr)&0xFF));
+		mem.write(addr&0xFFFF, (byte) shiftDo(opcode, mem.read(addr)&0xFF));
 		pc += 1;
 		return 16;
 	}
@@ -2037,7 +2060,7 @@ public class CPU {
 			flagC = bool(bit7);
 			break;
 		case SRA: // Shift right arithmetic
-			v = (((v&0xFF) >> 1) & 0xff) + (bit7 << 7);
+			v = (((v&0xFF) >> 1) & 0xff) + ((bit7&0xFF) << 7);
 			flagC = bool(bit0);
 			break;
 		case SRL: // Shift right logical
@@ -2070,7 +2093,7 @@ public class CPU {
 	}
 
 	private int cpl_() {
-		reg[A] = (byte) ~reg[A];
+		reg[A] = (byte) ~(reg[A]&0xFF);
 		flagN = true;
 		flagH = true;
 		pc += 1;
@@ -2089,8 +2112,8 @@ public class CPU {
 	}
 
 	private int addHL_rr(int a, int b) {
-		int c = (reg[L] += reg[b]) > 255 ? 1 : 0;
-		int h = reg[H] + reg[a] + c;
+		int c = (reg[L] += (reg[b]&0xFF)) > 255 ? 1 : 0;
+		int h = (reg[H]&0xFF) + (reg[a]&0xFF) + c;
 		flagH = bool(((reg[H] & 0x0F) + (reg[a] & 0x0F) + c) & 0x10);
 		reg[H] = (byte) h;
 		flagC = (h > 255);
@@ -2106,21 +2129,21 @@ public class CPU {
 			if (flagH)
 				reg[A] -= 0x06;
 		} else {
-			if (reg[A] > 0x99 || flagC) {
+			if ((reg[A]&0xFF) > 0x99 || flagC) {
 				reg[A] += 0x60;
 				flagC = true;
 			}
 			if ((reg[A] & 0x0f) > 0x09 || flagH)
 				reg[A] += 0x06;
 		}
-		flagZ = reg[A] == 0;
+		flagZ = (reg[A]&0xFF) == 0;
 		flagH = false;
 		pc++;
 		return 4;
 	}
 
 	private int ld_imm_sp_() {
-		mem.write16((mem.read(pc + 1)&0xFF) + ((mem.read(pc + 2)&0xFF) << 8), (byte) (sp >> 8), (byte) (sp & 0xFF));
+		mem.write16((mem.read(pc + 1)&0xFF) + ((mem.read(pc + 2)&0xFF) << 8), (byte) (((sp) >> 8)&0xFF), (byte) (sp & 0xFF));
 		pc += 3;
 		return 20;
 	}
@@ -2180,8 +2203,8 @@ public class CPU {
 
 	private int swap_() {
 		byte a = (byte) (mem.read(addr(H, L)&0xFFFF)&0xFF);
-		a = (byte) ((a >> 4) + ((a << 4) & 0xFF));
-		mem.write(addr(H, L), a);
+		a = (byte) (((a&0xFF) >> 4) + (((a&0xFF) << 4) & 0xFF));
+		mem.write(addr(H, L), (byte) (a&0xFF));
 		flagZ = (a == 0);
 		flagN = false;
 		flagH = false;
@@ -2191,7 +2214,7 @@ public class CPU {
 	}
 
 	private int swap_r(int r) {
-		reg[r] = (byte) ((reg[r] >> 4) + ((reg[r] << 4) & 0xFF));
+		reg[r] = (byte) (((reg[r]&0xFF) >> 4) + (((reg[r]&0xFF) << 4) & 0xFF));
 		flagZ = (reg[r] == 0);
 		flagN = false;
 		flagH = false;
@@ -2201,7 +2224,7 @@ public class CPU {
 	}
 
 	private int bit_vHL(int b, int hl) {
-		b = (1 << b);
+		b = (1 << b&0xFF); // (1 << b) ???
 		flagZ = (((mem.read(addr(H, L)&0xFFFF) & b)&0xFF) == 0);
 		flagH = true;
 		flagN = false;
@@ -2210,8 +2233,8 @@ public class CPU {
 	}
 
 	private int bit_vr(int b, int r) {
-		b = (1 << b);
-		flagZ = ((reg[r] & b) == 0);
+		b = (1 << b&0xFF); // (1 << b) ???
+		flagZ = (((reg[r]&0xFF) & b) == 0);
 		flagH = true;
 		flagN = false;
 		pc++;
@@ -2219,14 +2242,14 @@ public class CPU {
 	}
 
 	private int set_vHL(int b, int hl) {
-		b = (1 << b);
+		b = (1 << b&0xFF); // (1 << b) ???
 		mem.write(addr(H, L)&0xFFFF, (byte) ((mem.read(addr(H, L)&0xFFFF)&0xFF) | b));
 		pc++;
 		return 16;
 	}
 
 	private int set_vr(int b, int r) {
-		b = (1 << b);
+		b = (1 << b&0xFF); // (1 << b) ???
 		reg[r] |= b;
 		pc++;
 		return 8;

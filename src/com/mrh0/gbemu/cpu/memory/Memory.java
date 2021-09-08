@@ -25,11 +25,11 @@ public class Memory {
 		if (addr <= 0x3FFF)
 			return rom[addr];
 		if (addr <= 0x7FFF)
-			return rom[addr + globals.ROMbankoffset];
+			return (byte) (rom[addr + globals.ROMbankoffset]&0xFF);
 
 		// Cartridge RAM
 		if (addr >= 0xA000 && addr <= 0xBFFF)
-			return cartRAM[addr + globals.RAMbankoffset];
+			return (byte) (cartRAM[addr + globals.RAMbankoffset]&0xFF);
 
 		// Joypad
 		if (addr == 0xFF00) {
@@ -44,16 +44,17 @@ public class Memory {
 			//System.out.println("Read: wait for frame - " + mem[0xFF44]);
 			//return (byte) 0x90;
 		}
-		return mem[addr];
+		return (byte) (mem[addr]&0xFF);
 	}
 
 	public byte readRaw(int addr) {
 		addr &= 0xFFFF;
-		return mem[addr];
+		return (byte) (mem[addr]&0xFF);
 	}
 
 	public void write(int addr, byte data) {
 		addr &= 0xFFFF;
+		data &= 0xFF;
 		if (addr <= 0x7FFF) {
 			doMBC(addr, data);
 			return;
@@ -114,7 +115,7 @@ public class Memory {
 		// disable bootrom
 		else if (addr == 0xFF50) {
 			for (int i = 0; i < 256; i++)
-				rom[i] = MemMap.FirstROM(i, mem);
+				rom[i] = (byte) (MemMap.FirstROM(i, mem)&0xFF);
 			return;
 		}
 
@@ -128,7 +129,7 @@ public class Memory {
 
 	public void writeRaw(int addr, byte data) {
 		addr &= 0xFFFF;
-		mem[addr] = data;
+		mem[addr] = (byte) (data&0xFF);
 	}
 
 	public byte incRaw(int addr) {
@@ -142,7 +143,7 @@ public class Memory {
 
 	private void doMBC(int addr, byte data) {
 
-		switch (rom[0x147]) {
+		switch (rom[0x147]&0xFF) {
 
 		// Cartridge Type = ROM[0x147]
 

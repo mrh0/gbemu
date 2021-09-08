@@ -35,8 +35,8 @@ public class Main {
 		
 		Memory memory = new Memory(globals, 0x10000, rom);
 		
-		memory.raw()[0xFF41] = 1;
-		memory.raw()[0xFF43] = 1;
+		memory.raw()[0xFF41] = 0b1;
+		memory.raw()[0xFF43] = 0b1;
 		
 		LCD lcd = new LCD(globals);
 		
@@ -51,7 +51,7 @@ public class Main {
 				cpu.debug();
 				cpu.advance();
 			}
-			Thread.sleep(1);
+			//Thread.sleep(1);
 		}
 	}
 	

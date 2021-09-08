@@ -49,15 +49,17 @@ public class LCD extends JPanel {
 		}
 	}
 
-	public void update() {
+	public void update(int pc) {
 		System.out.println("LCD update");
 		this.repaint();
-		/*try {
-			Thread.sleep(10000);
+		if(pc < 256)
+			return;
+		try {
+			Thread.sleep(1000);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		System.exit(0);*/
+		//System.exit(0);
 	}
 }
