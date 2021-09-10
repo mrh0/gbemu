@@ -17,6 +17,8 @@ public class Main {
 
 	public static void main(String[] args) throws IOException, InterruptedException {
 
+		//IO.compareLogs();
+		
 		Window window = createWindow();
 		
 		JFileChooser fc = new JFileChooser();
@@ -47,11 +49,11 @@ public class Main {
 		cpu.reset();
 		
 		while(true) {
-			for(int i = 0; i < 256; i++) {
-				cpu.debug();
+			for(int i = 0; i < 1024; i++) {
+				//cpu.debug();
 				cpu.advance();
 			}
-			//Thread.sleep(1);
+			Thread.sleep(1);
 		}
 	}
 	

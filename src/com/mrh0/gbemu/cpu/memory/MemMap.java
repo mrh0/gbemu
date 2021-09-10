@@ -21,7 +21,7 @@ public enum MemMap {
 	public final int start;
 	public final int end;
 	
-	public static byte FirstROM(int i, byte[] mem) {
-		return mem[i + Bank0.start];
-	}
+	/*public static byte FirstROM(int i, byte[] mem) {
+		return mem[i + Bank0.start&0xFFFF];
+	}*/
 }

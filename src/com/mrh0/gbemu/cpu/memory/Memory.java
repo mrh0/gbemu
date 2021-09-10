@@ -1,6 +1,7 @@
 package com.mrh0.gbemu.cpu.memory;
 
 import com.mrh0.gbemu.cpu.Globals;
+import com.mrh0.gbemu.io.IO;
 
 public class Memory {
 
@@ -15,12 +16,21 @@ public class Memory {
 		this.mem = new byte[size];
 		this.cartRAM = new byte[0x8000];
 		this.rom = rom;
+		
+		/*for(int i = 0x40; i < 0x100; i++) {
+			System.out.println(Integer.toHexString(read(i)&0xFF));
+		}
+		IO.sleep(10000);*/
+	}
+	
+	public byte[] rom() {
+		return rom;
 	}
 
 	public byte read(int addr) {
 		addr &= 0xFFFF;
 		if(addr >= 0x00A8 && addr < 0x00D8) {
-			System.out.println("LOGO READ " + Integer.toHexString(addr) + ":" + Integer.toHexString(rom[addr]));
+			//System.out.println("LOGO READ " + Integer.toHexString(addr) + ":" + Integer.toHexString(rom[addr]));
 		}
 		if (addr <= 0x3FFF)
 			return rom[addr];
@@ -55,6 +65,10 @@ public class Memory {
 	public void write(int addr, byte data) {
 		addr &= 0xFFFF;
 		data &= 0xFF;
+		
+		//if(addr >= 0x40 && addr <= 0x100)
+		//	IO.sleep();
+		
 		if (addr <= 0x7FFF) {
 			doMBC(addr, data);
 			return;
@@ -114,8 +128,9 @@ public class Memory {
 
 		// disable bootrom
 		else if (addr == 0xFF50) {
+			System.out.println("disable bootrom");
 			for (int i = 0; i < 256; i++)
-				rom[i] = (byte) (MemMap.FirstROM(i, mem)&0xFF);
+				rom[i] = (byte) (globals.FirstROMPage[i]&0xFF);
 			return;
 		}
 
@@ -130,11 +145,6 @@ public class Memory {
 	public void writeRaw(int addr, byte data) {
 		addr &= 0xFFFF;
 		mem[addr] = (byte) (data&0xFF);
-	}
-
-	public byte incRaw(int addr) {
-		addr &= 0xFFFF;
-		return mem[addr]++;
 	}
 
 	public byte[] raw() {

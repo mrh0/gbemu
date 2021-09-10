@@ -1,7 +1,11 @@
 package com.mrh0.gbemu.cpu;
 
+import java.io.FileWriter;
+
+import com.mrh0.gbemu.Debugger;
 import com.mrh0.gbemu.cpu.memory.MemMap;
 import com.mrh0.gbemu.cpu.memory.Memory;
+import com.mrh0.gbemu.io.IO;
 import com.mrh0.gbemu.lcd.LCD;
 
 public class CPU {
@@ -62,6 +66,11 @@ public class CPU {
 
 	// Main:
 
+	public static Debugger before = new Debugger();
+	public static Debugger after = new Debugger();
+	
+	public static FileWriter logw = IO.logWriter();
+	
 	public void debug() {
 		int flags = (num(flagC)*0x10 + num(flagH)*0x20 + num(flagN)*0x40 + num(flagZ)*0x80)&0xFF;
 		StringBuilder sb = new StringBuilder();
@@ -83,8 +92,10 @@ public class CPU {
 		sb.append(")");
 		System.out.println(sb.toString());
 		
-		if(pc>=0x233) {
 			
+		
+		/*if(pc>=256) {
+			after.op(hex8(pc));
 			//System.out.println("Booted");
 			try {
 				Thread.sleep(1);
@@ -94,6 +105,30 @@ public class CPU {
 			}
 			//System.exit(0);
 		}
+		else {
+			before.op(hex8(pc));
+		}*/
+		IO.log(logw, getLogString());
+	}
+	
+	public String getLogString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append(Integer.toHexString(pc&0xFFFF)+"@");
+		sb.append(Integer.toHexString(mem.read(pc&0xFFFF)&0xFF)+",");
+		sb.append(Integer.toHexString(sp&0xFFFF)+",");
+		sb.append(Integer.toHexString(reg[A]&0xFF)+",");
+		sb.append(Integer.toHexString(reg[B]&0xFF)+",");
+		sb.append(Integer.toHexString(reg[C]&0xFF)+",");
+		sb.append(Integer.toHexString(reg[D]&0xFF)+",");
+		sb.append(Integer.toHexString(reg[E]&0xFF)+",");
+		sb.append(Integer.toHexString(reg[H]&0xFF)+",");
+		sb.append(Integer.toHexString(reg[L]&0xFF)+",");
+		sb.append(flagZ ? "Z" : "-");
+		sb.append(flagN ? "N" : "-");
+		sb.append(flagH ? "H" : "-");
+		sb.append(flagC ? "C" : "-");
+		sb.append("\n");
+		return sb.toString();
 	}
 
 	public void reset() {
@@ -124,16 +159,16 @@ public class CPU {
 
 		if ((globals.divPrescaler += cycles) > 255) {
 			globals.divPrescaler -= 256;
-			mem.incRaw(0xFF04);
+			mem.raw()[0xFF04]++;
 		}
 		if (globals.timerEnable) {
 			globals.timerPrescaler -= cycles;
 			while (globals.timerPrescaler < 0) {
 				globals.timerPrescaler += globals.timerLength;
-				if (mem.incRaw(0xFF05) == 0xFF) {
+				if (mem.raw()[0xFF05] == 0xFF) {
 					mem.writeRaw(0xFF05, (byte) (mem.readRaw(0xFF06)&0xFF));
 					// Set interrupt flag here
-					mem.writeRaw(0xFF0F, (byte) ((mem.readRaw(0xFF0F)&0xFF) | (1 << 2)));
+					mem.writeRaw(0xFF0F, (byte) ((mem.readRaw(0xFF0F)&0xFF) | ((1 << 2)&0xFF)));
 					halted = false;
 				}
 			}
@@ -168,7 +203,7 @@ public class CPU {
 				int LY = mem.raw()[0xFF44]&0xFF;
 				int dpy = LY * 160;
 
-				boolean drawWindow = bool((mem.raw()[0xFF40]&0xFF) & (1 << 5)) && LY >= (mem.raw()[0xFF4A]&0xFF);
+				boolean drawWindow = bool((mem.raw()[0xFF40]&0xFF) & ((1 << 5)&0xFF)) && LY >= (mem.raw()[0xFF4A]&0xFF);
 				int bgStopX = drawWindow ? (mem.raw()[0xFF4B]&0xFF) - 7 : 160;
 
 				// FF40 - LCDC - LCD Control (R/W)
@@ -185,7 +220,7 @@ public class CPU {
 				int baseTileOffset;
 				boolean tileSigned;
 				// Tile Data Select
-				if (bool((mem.raw()[0xFF40]&0xFF) & (1 << 4))) {
+				if (bool((mem.raw()[0xFF40]&0xFF) & ((1 << 4)&0xFF))) {
 					baseTileOffset = 0x8000;
 					tileSigned = false;
 				} else {
@@ -197,7 +232,7 @@ public class CPU {
 
 				if (bool((mem.raw()[0xFF40]&0xFF) & 1)) { // BG enabled
 					// BG Tile map display select
-					int bgTileMapAddr = bool(mem.raw()[0xFF40] & (1 << 3)) ? 0x9C00 : 0x9800;
+					int bgTileMapAddr = bool(mem.raw()[0xFF40] & ((1 << 3)&0xFF)) ? 0x9C00 : 0x9800;
 
 					// scy FF42
 					// scx FF43
@@ -210,7 +245,7 @@ public class CPU {
 
 					int x = (mem.raw()[0xFF43]&0xFF) >> 3;
 					int xoff = (mem.raw()[0xFF43]&0xFF) & 7;
-					int y = (LY + (mem.raw()[0xFF42]&0xFF)) & 0xFF;
+					int y = ((LY&0xFF) + (mem.raw()[0xFF42]&0xFF)) & 0xFF;
 
 					// Y doesn't change throughout a scanline
 					bgTileMapAddr += (~~(y / 8)) * 32;
@@ -236,7 +271,7 @@ public class CPU {
 
 				if (drawWindow) { // Window display enable
 					// Window Tile map display select
-					int wdTileMapAddr = bool((mem.raw()[0xFF40]&0xFF) & (1 << 6)) ? 0x9C00 : 0x9800;
+					int wdTileMapAddr = bool((mem.raw()[0xFF40]&0xFF) & ((1 << 6)&0xFF)) ? 0x9C00 : 0x9800;
 
 					int xoff = 0;
 					int y = LY - mem.raw()[0xFF4A]&0xFF;
@@ -260,7 +295,7 @@ public class CPU {
 
 					// Render sprites
 					int height, tileNumMask;
-					if (bool((mem.raw()[0xFF40]&0xFF) & (1 << 2))) {
+					if (bool((mem.raw()[0xFF40]&0xFF) & ((1 << 2)&0xFF))) {
 						height = 16;
 						tileNumMask = 0xFE; // in 8x16 mode, lowest bit of tile number is ignored
 					} else {
@@ -289,10 +324,10 @@ public class CPU {
 							// Bit5 X flip (0=Normal, 1=Horizontally mirrored)
 							// Bit4 Palette number **Non CGB Mode Only** (0=OBP0, 1=OBP1)
 
-							int[] palette = bool(att & (1 << 4)) ? OBP1 : OBP0;
-							boolean behind = bool(att & (1 << 7));
+							int[] palette = bool(att & ((1 << 4)&0xFF)) ? OBP1 : OBP0;
+							boolean behind = bool(att & ((1 << 7)&0xFF));
 
-							if (bool(att & (1 << 6))) { // Y flip
+							if (bool(att & ((1 << 6)&0xFF))) { // Y flip
 								tileNum += (ypos - LY - 1) * 2;
 							} else {
 								tileNum += (LY - ypos + height) * 2;
@@ -301,7 +336,7 @@ public class CPU {
 							int d2 = mem.raw()[tileNum + 1]&0xFF;
 							int[] row = pixelDecoder[d1][d2];
 
-							if (bool(att & (1 << 5))) { // x flip
+							if (bool(att & ((1 << 5)&0xFF))) { // x flip
 								if (behind) {
 									for (int j = 0; j < Math.min(xpos, 8); j++) {
 										if ((lcd.raw()[dpy + xpos - 1 - j]&0xFF) == background && bool(row[j]))
@@ -339,36 +374,36 @@ public class CPU {
 			// Bit 2 - Coincidence Flag (0:LYC<>LY, 1:LYC=LY) (Read Only)
 
 			if (coincidence) {
-				if (bool((mem.raw()[0xFF41]&0xFF) & (1 << 6))) { // coincidence interrupt enabled
-					mem.raw()[0xFF0F] |= 1 << 1; // LCD STAT Interrupt flag
-					mem.raw()[0xFF41] |= 1 << 2; // coincidence flag
+				if (bool((mem.raw()[0xFF41]&0xFF) & ((1 << 6)&0xFF))) { // coincidence interrupt enabled
+					mem.raw()[0xFF0F] |= ((1 << 1)&0xFF); // LCD STAT Interrupt flag
+					mem.raw()[0xFF41] |= ((1 << 2)&0xFF); // coincidence flag
 				}
 			} else
 				mem.raw()[0xFF41] &= 0xFB;// ~(1<<2)
 			if (globals.LCD_lastmode != mode) { // Mode change
 				if (mode == 0) {
-					if (bool((mem.raw()[0xFF41]&0xFF) & (1 << 3)))
-						mem.raw()[0xFF0F] |= 1 << 1;
+					if (bool((mem.raw()[0xFF41]&0xFF) & ((1 << 3)&0xFF)))
+						mem.raw()[0xFF0F] |= ((1 << 1)&0xFF);
 				} else if (mode == 1) {
 
 					// LCD STAT interrupt on v-blank
-					if (bool((mem.raw()[0xFF41]&0xFF) & (1 << 4)))
-						mem.raw()[0xFF0F] |= 1 << 1;
+					if (bool((mem.raw()[0xFF41]&0xFF) & ((1 << 4)&0xFF)))
+						mem.raw()[0xFF0F] |= ((1 << 1)&0xFF);
 
 					// Main V-Blank interrupt
 					if (bool((mem.raw()[0xFFFF]&0xFF) & 1))
-						mem.raw()[0xFF0F] |= 1 << 0;
+						mem.raw()[0xFF0F] |= ((1 << 0)&0xFF);
 
 					// renderDisplayCanvas(); mrh0: what it do?
 					lcd.update(pc);
 
 				} else if (mode == 2) {
-					if (bool((mem.raw()[0xFF41]&0xFF) & (1 << 5)))
-						mem.raw()[0xFF0F] |= 1 << 1;
+					if (bool((mem.raw()[0xFF41]&0xFF) & ((1 << 5)&0xFF)))
+						mem.raw()[0xFF0F] |= ((1 << 1)&0xFF);
 				}
 
 				mem.raw()[0xFF41] &= 0xF8;
-				mem.raw()[0xFF41] += mode;
+				mem.raw()[0xFF41] += mode&0xFF;
 				globals.LCD_lastmode = mode;
 			}
 
@@ -378,7 +413,7 @@ public class CPU {
 			// if enabled and flag set
 			byte i = (byte) ((mem.raw()[0xFF0F]&0xFF) & (mem.raw()[0xFFFF]&0xFF));
 
-			if (bool(i & (1 << 0))) {
+			if (bool(i & ((1 << 0)&0xFF))) {
 				mem.raw()[0xFF0F] &= ~(1 << 0);
 				cycles += interrupt(0x40);
 			} else if (bool(i & (1 << 1))) {
@@ -1490,11 +1525,11 @@ public class CPU {
 		return b > 0;
 	}
 
-	private String hex8(int h) {
+	public static String hex8(int h) {
 		return ((h & 0xFF) < 0x10 ? "0" : "") + Integer.toHexString(h & 0xFF).toUpperCase();
 	}
 	
-	private String hex(int h, int l) {
+	public static String hex(int h, int l) {
 		String r = Integer.toHexString(h).toUpperCase();
 		for(int i = r.length(); i<l; i++) {
 			r = "0"+r;
@@ -1505,25 +1540,25 @@ public class CPU {
 	// ALU:
 
 	private int alu_I(ALUOP opcode) {
-		reg[A] = ALUdo(opcode, mem.read(pc + 1)&0xFF);
+		reg[A] = (byte) (ALUdo(opcode, mem.read(pc + 1)&0xFF)&0xFF);
 		pc += 2;
 		return 8;
 	}
 
 	private int alu_HL(ALUOP opcode) {
-		reg[A] = ALUdo(opcode, mem.read(addr(H, L))&0xFF);
+		reg[A] = (byte) (ALUdo(opcode, mem.read(addr(H, L))&0xFF)&0xFF);
 		pc += 1;
 		return 8;
 	}
 
 	private int alu_rr(ALUOP opcode, int a, int b) {
-		reg[a] = ALUdo(opcode, reg[b]&0xFF);
+		reg[a] = (byte) (ALUdo(opcode, reg[b]&0xFF)&0xFF);
 		pc += 1;
 		return 4;
 	}
 
 	private byte ALUdo(ALUOP opcode, int value) {
-		byte res = (byte) (reg[A]&0xFF);
+		int res = reg[A]&0xFF;
 		flagN = false;
 
 		switch (opcode) {
@@ -1579,7 +1614,7 @@ public class CPU {
 	}
 
 	private int ld_rr(int a, int b) {
-		reg[a] = reg[b];
+		reg[a] = (byte) (reg[b]&0xFF);
 		pc += 1;
 		return 4;
 	}
@@ -1616,14 +1651,14 @@ public class CPU {
 
 	private int ld16_HLI() { // TODO: Where????
 		int addr = ((mem.read(pc + 1)&0xFF) | ((mem.read(pc + 2)&0xFF) << 8))&0xFFFF;// + -> |
-		reg[H] = mem.read(addr + 1);
-		reg[L] = mem.read(addr);
+		reg[H] = (byte) (mem.read(addr + 1)&0xFF);
+		reg[L] = (byte) (mem.read(addr)&0xFF);
 		pc += 3;
 		return 12;
 	}
 
 	private int ld16_I() {
-		sp = (mem.read(pc + 1)&0xFF + ((mem.read(pc + 2)&0xFF) << 8))&0xFFFF;
+		sp = (mem.read(pc + 1)&0xFF | ((mem.read(pc + 2)&0xFF) << 8))&0xFFFF; // + -> |
 		pc += 3;
 		return 12;
 	}
@@ -1642,7 +1677,7 @@ public class CPU {
 	}
 
 	private int ldd_HLA() {
-		mem.write(addr(H, L), (byte) (reg[A]&0xFF));
+		mem.write(addr(H, L)&0xFFFF, (byte) (reg[A]&0xFF));
 		if ((reg[L]&0xFF) == 0)
 			reg[H]--;
 		reg[L]--;
@@ -1685,25 +1720,25 @@ public class CPU {
 	}
 
 	private int ldc_AC() {
-		reg[A] = (byte) (mem.read(MemMap.IO.start + (reg[C]&0xFF))&0xFF);
+		reg[A] = (byte) (mem.read((MemMap.IO.start&0xFFFF) + (reg[C]&0xFF))&0xFF);
 		pc += 1;
 		return 8;
 	}
 
 	private int ldc_CA() {
-		mem.write(MemMap.IO.start + (reg[C]&0xFF), (byte) (reg[A]&0xFF));
+		mem.write((MemMap.IO.start&0xFFFF) + (reg[C]&0xFF), (byte) (reg[A]&0xFF));
 		pc += 1;
 		return 8;
 	}
 
 	private int ldh_AI() {
-		reg[A] = (byte) (mem.read(MemMap.IO.start + (mem.read(pc + 1)&0xFF))&0xFF);
+		reg[A] = (byte) (mem.read((MemMap.IO.start&0xFFFF) + (mem.read(pc + 1)&0xFF))&0xFF);
 		pc += 2;
 		return 12;
 	}
 
 	private int ldh_IA() {
-		mem.write(MemMap.IO.start + (mem.read(pc + 1)&0xFF), (byte) (reg[A]&0xFF));
+		mem.write((MemMap.IO.start&0xFFFF) + (mem.read(pc + 1)&0xFF), (byte) (reg[A]&0xFF));
 		pc += 2;
 		return 12;
 	}
@@ -1721,13 +1756,13 @@ public class CPU {
 	}
 
 	private int inc_r(int a) {
-		reg[a] = offset((byte) (reg[a]&0xFF), 1);
+		reg[a] = (byte) (offset((byte) (reg[a]&0xFF), 1)&0xFF);
 		pc += 1;
 		return 4;
 	}
 
 	private int dec_r(int a) {
-		reg[a] = offset((byte) (reg[a]&0xFF), -1);
+		reg[a] = (byte) (offset((byte) (reg[a]&0xFF), -1)&0xFF);
 		pc += 1;
 		return 4;
 	}
@@ -1737,7 +1772,7 @@ public class CPU {
 		flagH = bool(((a & 0x0F) + offset) & 0x10);
 		flagN = offset == -1;
 		flagZ = ((res & 0xff) == 0);
-		return (byte) res;
+		return (byte) (res&0xFF);
 	}
 
 	private int inc16_() {
@@ -1869,9 +1904,8 @@ public class CPU {
 
 	private int push_rr(int a, int b) {
 		sp -= 2;
-		mem.write16(sp, reg[a], reg[b]);
+		mem.write16(sp, (byte) (reg[a]&0xFF), (byte) (reg[b]&0xFF));
 		pc += 1;
-		System.out.println("PUSH " + hex8(reg[a]) + hex8(reg[b]) + ":" + Integer.toHexString(sp));
 		return 16;
 	}
 
@@ -1891,8 +1925,6 @@ public class CPU {
 		reg[a] = (byte) (mem.read(sp + 1)&0xFF);
 		reg[b] = (byte) (mem.read(sp)&0xFF);
 		
-		System.out.println("POP " + hex8(reg[a]) + hex8(reg[b]) + ":" + Integer.toHexString(sp));
-		
 		sp += 2;
 		pc += 1;
 		
@@ -1903,9 +1935,6 @@ public class CPU {
 		sp -= 2;
 		int npc = pc + 3;
 		mem.write16(sp, (byte) (npc >> 8), (byte) (npc & 0xFF));
-		// System.out.println(Integer.toHexString(mem.read(pc + 1)) + "|" +
-		// Integer.toHexString(mem.read(pc + 2)) + "|" + Integer.toHexString(mem.read(pc
-		// + 2)<<8));
 		pc = ((mem.read(pc + 1) & 0xFF) | ((mem.read(pc + 2)&0xFF) << 8));// + -> |
 
 		return 24;
@@ -1945,7 +1974,6 @@ public class CPU {
 
 	private int ret_() {
 		pc = (((mem.read(sp + 1)&0xFF) << 8) + (mem.read(sp)&0xFF))&0xFFFF;
-		System.out.println("RET " + hex8(mem.read(sp + 1)) + ":" + hex8(mem.read(sp)) + ":" + Integer.toHexString(pc));
 		sp += 2;
 		return 16;
 	}
@@ -2007,7 +2035,7 @@ public class CPU {
 	private int rst_v(int a) {
 		sp -= 2;
 		int npc = pc + 1;
-		mem.write16(sp&0xFFFF, (byte) (npc >> 8), (byte) (npc & 0xFF));
+		mem.write16(sp&0xFFFF, (byte) ((npc&0xFFFF) >> 8), (byte) (npc & 0xFF));
 		pc = a & 0xFFFF;
 		return 16;
 	}
@@ -2046,9 +2074,7 @@ public class CPU {
 			flagC = bool(bit0);
 			break;
 		case RL: // Rotate left through carry
-			//System.out.println("SHIFT RL1 " + v);
 			v = (((v&0xFF) << 1) & 0xff) + (num(flagC));
-			//System.out.println("SHIFT RL2 " + bit7 + ":" + bit0 + "|" + v + ":" + bool(bit7));
 			flagC = bool(bit7);
 			break;
 		case RR: // Rotate right through carry
@@ -2101,10 +2127,12 @@ public class CPU {
 	}
 
 	private int addHL_() {
-		int c = (reg[L] += (sp & 0xFF)) > 255 ? 1 : 0;
-		int h = reg[H] + (sp >> 8) + c;
-		flagH = bool(((reg[H] & 0x0F) + ((sp >> 8) & 0x0F) + c) & 0x10);
-		reg[H] = (byte) h;
+		int k = (reg[L]&0xFF) + (sp & 0xFF);
+		reg[L] = (byte) (k&0xFF);
+		int c = k > 255 ? 1 : 0;
+		int h = (reg[H]&0xFF) + ((sp&0xFFFF) >> 8) + (c&0xFF);
+		flagH = bool(((reg[H] & 0x0F) + (((sp&0xFFFF) >> 8) & 0x0F) + c) & 0x10);
+		reg[H] = (byte) (h&0xFF);
 		flagC = (h > 255);
 		flagN = false;
 		pc += 1;
@@ -2112,10 +2140,14 @@ public class CPU {
 	}
 
 	private int addHL_rr(int a, int b) {
-		int c = (reg[L] += (reg[b]&0xFF)) > 255 ? 1 : 0;
-		int h = (reg[H]&0xFF) + (reg[a]&0xFF) + c;
-		flagH = bool(((reg[H] & 0x0F) + (reg[a] & 0x0F) + c) & 0x10);
-		reg[H] = (byte) h;
+		int k = (reg[L]&0xFF) + (reg[b]&0xFF);
+		reg[L] = (byte) (k&0xFF);
+		
+		int c = (k > 255 ? 1 : 0);
+		int h = (reg[H]&0xFF) + (reg[a]&0xFF) + (c&0xFF);
+		
+		flagH = bool(((reg[H] & 0x0F) + (reg[a] & 0x0F) + (c&0xFF)) & 0x10);
+		reg[H] = (byte) (h&0xFF);
 		flagC = (h > 255);
 		flagN = false;
 		pc += 1;
@@ -2143,7 +2175,7 @@ public class CPU {
 	}
 
 	private int ld_imm_sp_() {
-		mem.write16((mem.read(pc + 1)&0xFF) + ((mem.read(pc + 2)&0xFF) << 8), (byte) (((sp) >> 8)&0xFF), (byte) (sp & 0xFF));
+		mem.write16((mem.read(pc + 1)&0xFF) + ((mem.read(pc + 2)&0xFF) << 8), (byte) (((sp&0xFFFF) >> 8)&0xFF), (byte) (sp & 0xFF));
 		pc += 3;
 		return 20;
 	}
@@ -2155,7 +2187,7 @@ public class CPU {
 		flagC = bool(((sp & 0xFF) + (b & 0xFF)) & 0x100);
 
 		int n = sp + b;
-		reg[H] = (byte) (n >> 8);
+		reg[H] = (byte) ((n&0xFFFF) >> 8);
 		reg[L] = (byte) (n & 0xFF);
 
 		flagN = false;
@@ -2270,8 +2302,9 @@ public class CPU {
 	// Interrupt:
 
 	private int interrupt(int npc) {
+		//System.out.println("interrupt");
 		halted = false;
-		mem.write16(sp -= 2, (byte) (pc >> 8), (byte) (pc & 0xFF));
+		mem.write16(sp -= 2, (byte) (((pc&0xFFFF) >> 8)&0xFF), (byte) (pc & 0xFF));
 		pc = npc;
 		ime = false;
 

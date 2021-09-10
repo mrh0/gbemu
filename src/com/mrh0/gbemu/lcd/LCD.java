@@ -7,6 +7,7 @@ import java.awt.Graphics2D;
 
 import javax.swing.JPanel;
 
+import com.mrh0.gbemu.cpu.CPU;
 import com.mrh0.gbemu.cpu.Globals;
 
 public class LCD extends JPanel {
@@ -50,16 +51,17 @@ public class LCD extends JPanel {
 	}
 
 	public void update(int pc) {
-		System.out.println("LCD update");
+		//System.out.println("LCD update");
 		this.repaint();
-		if(pc < 256)
+		/*if(pc < 256)
 			return;
 		try {
-			Thread.sleep(1000);
+			CPU.after.printListed(CPU.before);
+			Thread.sleep(10000);
 		} catch (InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}
+		}*/
 		//System.exit(0);
 	}
 }
