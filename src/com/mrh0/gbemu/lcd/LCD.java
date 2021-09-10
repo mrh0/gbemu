@@ -9,6 +9,7 @@ import javax.swing.JPanel;
 
 import com.mrh0.gbemu.cpu.CPU;
 import com.mrh0.gbemu.cpu.Globals;
+import com.mrh0.gbemu.io.Input;
 
 public class LCD extends JPanel {
 
@@ -16,7 +17,7 @@ public class LCD extends JPanel {
 
 	byte[] pixels;
 	private Globals globals;
-	private final int SIZE = 160 * 144, SCALE = 2;
+	private final int SIZE = 160 * 144, SCALE = 3;
 
 	private Color[] colors = {
 		new Color(224, 248, 208),
@@ -42,7 +43,7 @@ public class LCD extends JPanel {
 	@Override
 	protected void paintComponent(Graphics gfx) {
 		Graphics2D g = (Graphics2D) gfx;
-		super.paintComponent(g); // Not needed (i think)
+		//super.paintComponent(g); // Not needed (i think)
 		
 		for(int i = 0; i < SIZE; i++) {
 			g.setColor(colors[pixels[i]]);

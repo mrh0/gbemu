@@ -1,7 +1,6 @@
 package com.mrh0.gbemu.cpu.memory;
 
 import com.mrh0.gbemu.cpu.Globals;
-import com.mrh0.gbemu.io.IO;
 
 public class Memory {
 
@@ -16,59 +15,73 @@ public class Memory {
 		this.mem = new byte[size];
 		this.cartRAM = new byte[0x8000];
 		this.rom = rom;
-		
-		/*for(int i = 0x40; i < 0x100; i++) {
-			System.out.println(Integer.toHexString(read(i)&0xFF));
-		}
-		IO.sleep(10000);*/
+		resetSoundRegisters();
 	}
-	
+
 	public byte[] rom() {
 		return rom;
 	}
 
+	private void resetSoundRegisters() {
+		mem[0xFF10] = (byte) 0x80; // NR10
+		mem[0xFF11] = (byte) 0xBF; // NR11
+		mem[0xFF12] = (byte) 0xF3; // NR12
+		mem[0xFF13] = 0x00;
+		mem[0xFF14] = (byte) 0xBF; // NR14
+		mem[0xFF15] = (byte) 0xFF; // NA
+		mem[0xFF16] = 0x3F; // NR21
+		mem[0xFF17] = 0x00; // NR22
+		mem[0xFF18] = 0x00;
+		mem[0xFF19] = (byte) 0xBF; // NR24
+		mem[0xFF1A] = 0x7F; // NR30
+		mem[0xFF1B] = (byte) 0xFF; // NR31
+		mem[0xFF1C] = (byte) 0x9F; // NR32
+		mem[0xFF1D] = 0x00;
+		mem[0xFF1E] = (byte) 0xBF; // NR33
+		mem[0xFF1F] = (byte) 0xFF; // NA
+		mem[0xFF20] = (byte) 0xFF; // NR41
+		mem[0xFF21] = 0x00; // NR42
+		mem[0xFF22] = 0x00; // NR43
+		mem[0xFF23] = (byte) 0xBF; // NR30
+		mem[0xFF24] = 0x77; // NR50
+		write(0xFF25, (byte) 0xF3); // NR51
+		mem[0xFF26] = (byte) 0xF1; // NR52
+
+	}
+
 	public byte read(int addr) {
 		addr &= 0xFFFF;
-		if(addr >= 0x00A8 && addr < 0x00D8) {
-			//System.out.println("LOGO READ " + Integer.toHexString(addr) + ":" + Integer.toHexString(rom[addr]));
-		}
-		if (addr <= 0x3FFF)
+
+		if (addr <= MemMap.Bank0.end)
 			return rom[addr];
-		if (addr <= 0x7FFF)
-			return (byte) (rom[addr + globals.ROMbankoffset]&0xFF);
+		if (addr <= MemMap.BankN.end)
+			return (byte) (rom[addr + globals.ROMbankoffset] & 0xFF);
 
 		// Cartridge RAM
-		if (addr >= 0xA000 && addr <= 0xBFFF)
-			return (byte) (cartRAM[addr + globals.RAMbankoffset]&0xFF);
+		if (addr >= MemMap.ExtRAM.start && addr <= MemMap.ExtRAM.end)
+			return (byte) (cartRAM[addr + globals.RAMbankoffset] & 0xFF);
 
 		// Joypad
-		if (addr == 0xFF00) {
-			if ((mem[0xFF00] & 0x20) > 0)
+		if (addr == MemMap.IO.start) {
+			if ((mem[MemMap.IO.start] & 0x20) > 0)
 				return globals.dpad;
-			else if ((mem[0xFF00] & 0x10) > 0)
+			else if ((mem[MemMap.IO.start] & 0x10) > 0) {
 				return globals.buttons;
-			else
+			} else
 				return (byte) 0xFF;
 		}
-		if(addr == 0xFF44) {
-			//System.out.println("Read: wait for frame - " + mem[0xFF44]);
-			//return (byte) 0x90;
-		}
-		return (byte) (mem[addr]&0xFF);
+		return (byte) (mem[addr] & 0xFF);
 	}
 
 	public byte readRaw(int addr) {
 		addr &= 0xFFFF;
-		return (byte) (mem[addr]&0xFF);
+		return (byte) (mem[addr] & 0xFF);
 	}
 
 	public void write(int addr, byte data) {
 		addr &= 0xFFFF;
 		data &= 0xFF;
-		
-		//if(addr >= 0x40 && addr <= 0x100)
-		//	IO.sleep();
-		
+
 		if (addr <= 0x7FFF) {
 			doMBC(addr, data);
 			return;
@@ -84,8 +97,9 @@ public class Memory {
 			mem[0xFF04] = 0;
 			return;
 		}
+
 		// Timer control
-		else if (addr == 0xFF07) {
+		if (addr == 0xFF07) {
 			globals.timerEnable = ((data & (1 << 2)) != 0);
 			globals.timerLength = globals.timerLengths[data & 0x3];
 			globals.timerPrescaler = globals.timerLength; // +cycles for this instruction?
@@ -93,8 +107,23 @@ public class Memory {
 			return;
 		}
 
+		if (addr == 0xFF26) {
+			if ((data & (1 << 7)) > 0) {
+				mem[0xFF26] = (byte) (data & (1 << 7));
+				// SoundEnabled = true;
+				// audioCtx.resume()
+			} else {
+				// SoundEnabled = false;
+				// should we set each oscillator to amplitude zero too?
+				// audioCtx.suspend()
+				// Zero all sound registers
+				resetSoundRegisters();
+			}
+			return;
+		}
+
 		// LCD control
-		else if (addr == 0xFF40) {
+		if (addr == 0xFF40) {
 			int cc = data & (1 << 7);
 			if (globals.LCD_enabled != cc > 0) {
 				globals.LCD_enabled = cc > 0;
@@ -104,7 +133,8 @@ public class Memory {
 					mem[0xFF41] = (byte) ((mem[0xFF41] & 0xFC) + 1);
 				}
 			}
-		} else if (addr == 0xFF41) {
+		}
+		if (addr == 0xFF41) {
 			// don't overwrite the lowest two bits (mode)
 			mem[0xFF41] &= 0x3;
 			data &= 0xFC;
@@ -113,13 +143,13 @@ public class Memory {
 		}
 
 		// LY - write causes reset
-		else if (addr == 0xFF44) {
+		if (addr == 0xFF44) {
 			mem[0xFF44] = 0;
 			return;
 		}
 
 		// FF46 - DMA - DMA Transfer and Start Address (W)
-		else if (addr == 0xFF46) {
+		if (addr == 0xFF46) {
 			int st = data << 8;
 			for (int i = 0; i <= 0x9F; i++)
 				mem[0xFE00 + i] = read(st + i);
@@ -127,10 +157,10 @@ public class Memory {
 		}
 
 		// disable bootrom
-		else if (addr == 0xFF50) {
+		if (addr == 0xFF50) {
 			System.out.println("disable bootrom");
 			for (int i = 0; i < 256; i++)
-				rom[i] = (byte) (globals.FirstROMPage[i]&0xFF);
+				rom[i] = (byte) (globals.FirstROMPage[i] & 0xFF);
 			return;
 		}
 
@@ -144,7 +174,7 @@ public class Memory {
 
 	public void writeRaw(int addr, byte data) {
 		addr &= 0xFFFF;
-		mem[addr] = (byte) (data&0xFF);
+		mem[addr] = (byte) (data & 0xFF);
 	}
 
 	public byte[] raw() {
@@ -153,7 +183,7 @@ public class Memory {
 
 	private void doMBC(int addr, byte data) {
 
-		switch (rom[0x147]&0xFF) {
+		switch (rom[0x147] & 0xFF) {
 
 		// Cartridge Type = ROM[0x147]
 

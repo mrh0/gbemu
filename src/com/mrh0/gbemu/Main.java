@@ -10,6 +10,7 @@ import com.mrh0.gbemu.cpu.CPU;
 import com.mrh0.gbemu.cpu.Globals;
 import com.mrh0.gbemu.cpu.memory.Memory;
 import com.mrh0.gbemu.io.IO;
+import com.mrh0.gbemu.io.Input;
 import com.mrh0.gbemu.lcd.LCD;
 import com.mrh0.gbemu.lcd.Window;
 
@@ -37,23 +38,37 @@ public class Main {
 		
 		Memory memory = new Memory(globals, 0x10000, rom);
 		
-		memory.raw()[0xFF41] = 0b1;
-		memory.raw()[0xFF43] = 0b1;
+		memory.raw()[0xFF41] = 1;
+		memory.raw()[0xFF43] = 0;
+		
+		//Unknown function:
+		memory.raw()[0xFFF4] = (byte) 0x31;
+		memory.raw()[0xFFF7] = (byte) 0xFF;
 		
 		LCD lcd = new LCD(globals);
 		
+		window.addKeyListener(new Input(globals));
 		window.add(lcd);
 		window.pack();
 		
 		CPU cpu = new CPU(memory, lcd, globals);
 		cpu.reset();
 		
+		int sum = 0;
+		for(int i = 0; i < memory.raw().length; i++) {
+		    sum+=memory.raw()[i]&0xFF;
+		    if((memory.raw()[i]&0xFF) > 0)
+		        System.out.println(Integer.toHexString(i) + ":" + Integer.toHexString(memory.raw()[i]&0xFF));
+		}
+		System.out.println(sum);
+		System.exit(0);
+		
 		while(true) {
 			for(int i = 0; i < 1024; i++) {
-				//cpu.debug();
+				cpu.debug();
 				cpu.advance();
 			}
-			Thread.sleep(1);
+			//Thread.sleep(1);
 		}
 	}
 	

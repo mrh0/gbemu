@@ -6,6 +6,8 @@ import java.awt.event.WindowListener;
 
 import javax.swing.JFrame;
 
+import com.mrh0.gbemu.io.Input;
+
 public class Window extends JFrame implements WindowListener {
 	
 	private static final long serialVersionUID = 1L;
