@@ -72,7 +72,11 @@ public class CPU {
 	public static FileWriter logw = IO.logWriter();
 	
 	public void debug() {
-		/*int flags = (num(flagC)*0x10 + num(flagH)*0x20 + num(flagN)*0x40 + num(flagZ)*0x80)&0xFF;
+		if(pc < 256)
+			return;
+		if(pc == 0xc7f4)
+			return;
+		int flags = (num(flagC)*0x10 + num(flagH)*0x20 + num(flagN)*0x40 + num(flagZ)*0x80)&0xFF;
 		StringBuilder sb = new StringBuilder();
 		sb.append("|pc:" + hex8(mem.read(pc)) + "@" + Integer.toHexString(pc) + "|sp:" + Integer.toHexString(sp) + "("
 				+ hex8(mem.read(sp + 1)) + "" + hex8(mem.read(sp)) + ")" + "|");
@@ -90,7 +94,9 @@ public class CPU {
 		sb.append(flagH ? "H" : "-");
 		sb.append(flagC ? "C" : "-");
 		sb.append(")");
-		System.out.println(sb.toString());*/
+		sb.append("["+Integer.toBinaryString(mem.raw()[0xFF0F])+"]");
+		sb.append("["+Integer.toBinaryString(mem.raw()[0xFFFF])+"]");
+		System.out.println(sb.toString());
 		
 			
 		
@@ -109,7 +115,7 @@ public class CPU {
 			before.op(hex8(pc));
 		}*/
 		//if(pc>256)
-			IO.log(logw, getLogString());
+			//IO.log(logw, getLogString());
 	}
 	
 	public String getLogString() {
@@ -179,10 +185,11 @@ public class CPU {
 			globals.timerPrescaler -= cycles;
 			while (globals.timerPrescaler < 0) {
 				globals.timerPrescaler += globals.timerLength;
-				if (mem.raw()[0xFF05] == 0xFF) {
-					mem.writeRaw(0xFF05, (byte) (mem.readRaw(0xFF06)&0xFF));
-					// Set interrupt flag here
-					mem.writeRaw(0xFF0F, (byte) ((mem.readRaw(0xFF0F)&0xFF) | 0x04));
+				mem.raw()[0xFF05] = (byte) ((mem.raw()[0xFF05]+1)&0xFF);
+				if (((mem.raw()[0xFF05]-1)&0xFF) == 0xFF) {
+					mem.raw()[0xFF05] = mem.raw()[0xFF06];
+					
+					mem.raw()[0xFF0F] |= 0x04;
 					halted = false;
 				}
 			}
@@ -427,7 +434,7 @@ public class CPU {
 
 		if (ime) {
 			
-			int i = ((mem.raw()[0xFF0F]&0xFF) & (mem.raw()[0xFFFF]&0xFF))&0xFF;
+			int i = mem.raw()[0xFF0F] & mem.raw()[0xFFFF];
 			//System.out.println(i);
 			//IO.sleep(1000);
 			
@@ -1750,34 +1757,44 @@ public class CPU {
 	}
 
 	private int inc_HL() {
-		mem.write(addr(H, L)&0xFFFF, offset((byte) (mem.read(addr(H, L)&0xFFFF)&0xFF), 1));
+		mem.write(addr(H, L)&0xFFFF, offsetInc((byte) (mem.read(addr(H, L)&0xFFFF)&0xFF)));
 		pc += 1;
 		return 12;
 	}
 
 	private int dec_HL() {
-		mem.write(addr(H, L)&0xFFFF, offset((byte) (mem.read(addr(H, L)&0xFFFF)&0xFF), -1));
+		mem.write(addr(H, L)&0xFFFF, offsetDec((byte) (mem.read(addr(H, L)&0xFFFF)&0xFF)));
 		pc += 1;
 		return 12;
 	}
 
 	private int inc_r(int a) {
-		reg[a] = (byte) (offset((byte) (reg[a]&0xFF), 1)&0xFF);
+		reg[a] = offsetInc((byte) (reg[a]&0xFF));
 		pc += 1;
 		return 4;
 	}
 
 	private int dec_r(int a) {
-		reg[a] = (byte) (offset((byte) (reg[a]&0xFF), -1)&0xFF);
+		reg[a] = offsetDec((byte) (reg[a]&0xFF));
 		pc += 1;
 		return 4;
 	}
 
-	private byte offset(byte a, int offset) {
-		int res = (a + offset);
-		flagH = bool(((a & 0x0F) + offset) & 0x10);
-		flagN = offset == -1;
-		flagZ = ((res & 0xff) == 0);
+	private byte offsetInc(byte a) {
+		int res = (a + 1)&0xFF;
+		//flagH = bool(((a & 0x0F) + 1) & 0x10);
+		flagH = (a & 0xF) == 0xF;
+		flagN = false;
+		flagZ = (res & 0xFF) == 0;
+		return (byte) (res&0xFF);
+	}
+	
+	private byte offsetDec(byte a) {
+		int res = (a -1)&0xFF;
+		//flagH = bool(((a & 0x0F) -1) & 0x10);
+		flagH = (a & 0xF) == 0x0;
+		flagN = true;
+		flagZ = (res & 0xFF) == 0;
 		return (byte) (res&0xFF);
 	}
 
@@ -2308,7 +2325,7 @@ public class CPU {
 	}
 
 	private int interrupt(int npc) {
-		IO.log(logw, "interrupt " + Integer.toHexString(npc)+"\n");
+		//IO.log(logw, "interrupt " + Integer.toHexString(npc)+"\n");
 		halted = false;
 		mem.write16(sp -= 2, (byte) (((pc&0xFFFF) >> 8)&0xFF), (byte) (pc & 0xFF));
 		pc = npc;

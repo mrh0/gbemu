@@ -60,6 +60,7 @@ public class Main {
 			windowTick(window, globals);
 			if(!globals.cpuEnabled)
 				continue;
+			//cpu.debug();
 			cycles -= cpu.advance();
 			while (cycles < 0) {
 				if ((time = System.nanoTime()) > ntime) {
