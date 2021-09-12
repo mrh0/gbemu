@@ -14,9 +14,10 @@ public class Input implements KeyListener {
 	public Input(Globals globals) {
 		this.globals = globals;
 		this.btns = new boolean[8];
-		updateGlobals();
+		//updateGlobals();
 	}
 	
+	// Game Input
 	private final int btnA = 90;
 	private final int btnB = 88;
 	private final int btnUp = 38;
@@ -25,6 +26,10 @@ public class Input implements KeyListener {
 	private final int btnRight = 39;
 	private final int btnStart = 10;
 	private final int btnSelect = 16;
+	
+	// Emulation Input
+	
+	private final int btnPause = 19;
 	
 	private boolean[] btns;
 	
@@ -69,6 +74,16 @@ public class Input implements KeyListener {
 		globals.dpad = (byte) (getBitVal(2, 0b0100) | getBitVal(3, 0b1000) | getBitVal(4, 0b0010) | getBitVal(5, 0b0001));
 		globals.buttons = (byte) (getBitVal(0, 0b0001) | getBitVal(1, 0b0010) | getBitVal(6, 0b1000) | getBitVal(7, 0b0100));
 	}
+	
+	private void emulatorButton(int btn, boolean state){
+		if(!state)
+			return;
+		switch(btn) {
+			case btnPause:
+				globals.cpuEnabled = !globals.cpuEnabled;
+				break;
+		}
+	}
 
 	@Override
 	public void keyTyped(KeyEvent e) {
@@ -77,10 +92,12 @@ public class Input implements KeyListener {
 	@Override
 	public void keyPressed(KeyEvent e) {
 		setButton(e.getKeyCode(), true);
+		emulatorButton(e.getKeyCode(), true);
 	}
 
 	@Override
 	public void keyReleased(KeyEvent e) {
 		setButton(e.getKeyCode(), false);
+		emulatorButton(e.getKeyCode(), false);
 	}
 }

@@ -72,7 +72,7 @@ public class CPU {
 	public static FileWriter logw = IO.logWriter();
 	
 	public void debug() {
-		int flags = (num(flagC)*0x10 + num(flagH)*0x20 + num(flagN)*0x40 + num(flagZ)*0x80)&0xFF;
+		/*int flags = (num(flagC)*0x10 + num(flagH)*0x20 + num(flagN)*0x40 + num(flagZ)*0x80)&0xFF;
 		StringBuilder sb = new StringBuilder();
 		sb.append("|pc:" + hex8(mem.read(pc)) + "@" + Integer.toHexString(pc) + "|sp:" + Integer.toHexString(sp) + "("
 				+ hex8(mem.read(sp + 1)) + "" + hex8(mem.read(sp)) + ")" + "|");
@@ -90,7 +90,7 @@ public class CPU {
 		sb.append(flagH ? "H" : "-");
 		sb.append(flagC ? "C" : "-");
 		sb.append(")");
-		System.out.println(sb.toString());
+		System.out.println(sb.toString());*/
 		
 			
 		
@@ -408,7 +408,7 @@ public class CPU {
 					// Main V-Blank interrupt
 					if (bool((mem.raw()[0xFFFF]&0xFF) & 0x01)) {
 						mem.raw()[0xFF0F] |= 0x01;
-						System.out.println("v-blank interrupt");
+						//System.out.println("v-blank interrupt");
 					}
 
 					lcd.update(pc);
@@ -1732,13 +1732,13 @@ public class CPU {
 	}
 
 	private int ldc_CA() {
-		mem.write((MemMap.IO.start&0xFFFF) + (reg[C]&0xFF), (byte) (reg[A]&0xFF));
+		mem.write(0xFF00 | (reg[C]&0xFF), (byte) (reg[A]&0xFF)); // + -> |
 		pc += 1;
 		return 8;
 	}
 
 	private int ldh_AI() {
-		reg[A] = (byte) (mem.read(((MemMap.IO.start&0xFFFF) + (mem.read(pc + 1)&0xFF)&0xFFFF))&0xFF);
+		reg[A] = mem.read((0xFF00 + (mem.read(pc + 1)&0xFF))&0xFFFF); // + -> |
 		pc += 2;
 		return 12;
 	}
@@ -2294,12 +2294,14 @@ public class CPU {
 	}
 
 	private int res_vHL(int b, int hl) {
+		b = ~(1 << b&0xFF);
 		mem.write(addr(H, L)&0xFFFF, (byte) ((mem.read(addr(H, L)&0xFFFF)&0xFF) & b));
 		pc++;
 		return 16;
 	}
 
 	private int res_vr(int b, int r) {
+		b = ~(1 << b&0xFF);
 		reg[r] &= b;
 		pc++;
 		return 8;
