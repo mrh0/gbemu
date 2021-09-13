@@ -6,6 +6,9 @@ import java.io.IOException;
 import com.mrh0.gbemu.cpu.CPU;
 import com.mrh0.gbemu.cpu.Globals;
 import com.mrh0.gbemu.cpu.memory.Memory;
+import com.mrh0.gbemu.events.EmulationEventManager;
+import com.mrh0.gbemu.events.EmulationEventType;
+import com.mrh0.gbemu.events.IEmulationEvent;
 import com.mrh0.gbemu.io.IO;
 import com.mrh0.gbemu.io.Input;
 import com.mrh0.gbemu.ui.Window;
@@ -17,34 +20,52 @@ public class Emulator {
 	private Memory memory;
 	private LCD lcd;
 	private Window window;
+	private Input input;
+	
+	private final EmulationEventManager eventManager;
 	
 	public Emulator() {
+		eventManager = new EmulationEventManager();
+		
 		globals = new Globals();
 		lcd = new LCD(globals);
 		
 		// Setup Memory:
 		memory = new Memory(globals, 0x10000);
-		memory.raw()[0xFF41] = 1;
-		memory.raw()[0xFF43] = 0;
+		memory.raw()[0xFF41] = 0x01;
+		memory.raw()[0xFF43] = 0x00;
 		// Unknown function:
 		memory.raw()[0xFFF4] = (byte) 0x31;
 		memory.raw()[0xFFF7] = (byte) 0xFF;
 		
 		cpu = new CPU(memory, lcd, globals);
 		window = createWindow();
-		window.init(lcd, new Input(globals));
+		input = new Input(this);
+		window.init(this);
 	}
 	
-	public void setROM(byte[] rom) {
+	public void triggerEvent(EmulationEventType type) {
+		eventManager.trigger(type, this);
+	}
+	
+	public void addEvent(EmulationEventType type, IEmulationEvent event) {
+		eventManager.addListener(type, event);
+	}
+	
+	public boolean setROM(byte[] rom) {
+		if(rom == null)
+			return false;
 		memory.setROM(rom);
+		return true;
 	}
 	
-	public void setROM(File rom) {
+	public boolean setROM(File rom) {
 		try {
-			memory.setROM(readROM(rom));
+			return setROM(readROM(rom));
 		} catch (IOException e) {
 			System.err.println("Failed to load ROM file.");
 			e.printStackTrace();
+			return false;
 		}
 	}
 	
@@ -64,6 +85,10 @@ public class Emulator {
 		return window;
 	}
 	
+	public Input getInput() {
+		return input;
+	}
+	
 	private static Window createWindow() {
 		Window win = new Window();
 		win.setVisible(true);
@@ -72,7 +97,6 @@ public class Emulator {
 	
 	public void run() {
 		cpu.reset();
-		float relativeSpeed = 1f;
 		int relativePercent = 1;
 		long sec = System.nanoTime();
 		long time = System.nanoTime();
@@ -80,7 +104,6 @@ public class Emulator {
 		int cycles = globals.frameCycles;
 		long cycleSum = 0;
 		while (true) {
-			//System.out.println("testing");
 			long nano = System.nanoTime();
 			if(sec < nano) {
 				sec = nano + 1000000000;
@@ -116,6 +139,8 @@ public class Emulator {
 	}
 
 	private byte[] readROM(File file) throws IOException {
+		if(file == null)
+			return null;
 		byte[] rom = IO.readROM(file);
 		globals.FirstROMPage = new byte[256];
 		byte[] bootcode = parseBootcode();
@@ -134,5 +159,28 @@ public class Emulator {
 			bytes[i] = (byte) Integer.parseInt(splt[i], 16);
 		}
 		return bytes;
+	}
+	
+	public void togglePause() {
+		globals.cpuEnabled = !globals.cpuEnabled;
+		triggerEvent(EmulationEventType.EmulationPauseResume);
+	}
+	
+	public boolean isPaused() {
+		return !globals.cpuEnabled;
+	}
+	
+	public void setLCDScale(int scale) {
+		lcd.setScale(scale);
+		if(!window.isFullscreen())
+			window.pack();
+		else
+			window.validate();
+		triggerEvent(EmulationEventType.LCDScaleSet);
+	}
+	
+	public void setLCDColorMode(int mode) {
+		lcd.setColorMode(mode);
+		triggerEvent(EmulationEventType.LCDColorModeSet);
 	}
 }

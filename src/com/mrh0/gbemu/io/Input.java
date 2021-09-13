@@ -3,14 +3,15 @@ package com.mrh0.gbemu.io;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 
+import com.mrh0.gbemu.Emulator;
 import com.mrh0.gbemu.cpu.Globals;
 
 public class Input implements KeyListener {
 
-	private Globals globals;
+	private Emulator emulator;
 	
-	public Input(Globals globals) {
-		this.globals = globals;
+	public Input(Emulator emulator) {
+		this.emulator = emulator;
 		this.btns = new boolean[8];
 		//updateGlobals();
 	}
@@ -69,8 +70,8 @@ public class Input implements KeyListener {
 	}
 	
 	private void updateGlobals() {
-		globals.dpad = (byte) (getBitVal(2, 0b0100) | getBitVal(3, 0b1000) | getBitVal(4, 0b0010) | getBitVal(5, 0b0001));
-		globals.buttons = (byte) (getBitVal(0, 0b0001) | getBitVal(1, 0b0010) | getBitVal(6, 0b1000) | getBitVal(7, 0b0100));
+		emulator.getGlobals().dpad = (byte) (getBitVal(2, 0b0100) | getBitVal(3, 0b1000) | getBitVal(4, 0b0010) | getBitVal(5, 0b0001));
+		emulator.getGlobals().buttons = (byte) (getBitVal(0, 0b0001) | getBitVal(1, 0b0010) | getBitVal(6, 0b1000) | getBitVal(7, 0b0100));
 	}
 	
 	private void emulatorButton(int btn, boolean state){
@@ -78,7 +79,7 @@ public class Input implements KeyListener {
 			return;
 		switch(btn) {
 			case btnPause:
-				globals.cpuEnabled = !globals.cpuEnabled;
+				emulator.togglePause();
 				break;
 		}
 	}
