@@ -10,12 +10,15 @@ public class Memory {
 
 	private Globals globals;
 
-	public Memory(Globals globals, int size, byte[] rom) {
+	public Memory(Globals globals, int size) {
 		this.globals = globals;
 		this.mem = new byte[size];
 		this.cartRAM = new byte[0x8000];
-		this.rom = rom;
 		resetSoundRegisters();
+	}
+	
+	public void setROM(byte[] rom) {
+		this.rom = rom;
 	}
 
 	public byte[] rom() {

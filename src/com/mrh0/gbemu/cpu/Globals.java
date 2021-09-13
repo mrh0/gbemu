@@ -20,6 +20,7 @@ public class Globals {
 	
 	public final long frameTime = 16750418;
 	public final int frameCycles = 70256;
+	public final float secondCycles = ((float)frameCycles)*59.7f;
 	
 	public boolean soundEnabled = false;
 	public boolean cpuEnabled = true;

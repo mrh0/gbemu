@@ -1,4 +1,4 @@
-package com.mrh0.gbemu.lcd;
+package com.mrh0.gbemu.ui.lcd;
 
 import java.awt.Dimension;
 import java.awt.Graphics;

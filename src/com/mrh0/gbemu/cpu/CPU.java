@@ -6,7 +6,7 @@ import com.mrh0.gbemu.Debugger;
 import com.mrh0.gbemu.cpu.memory.MemMap;
 import com.mrh0.gbemu.cpu.memory.Memory;
 import com.mrh0.gbemu.io.IO;
-import com.mrh0.gbemu.lcd.LCD;
+import com.mrh0.gbemu.ui.lcd.LCD;
 
 public class CPU {
 	private byte[] reg;
@@ -72,10 +72,6 @@ public class CPU {
 	public static FileWriter logw = IO.logWriter();
 	
 	public void debug() {
-		if(pc < 256)
-			return;
-		if(pc == 0xc7f4)
-			return;
 		int flags = (num(flagC)*0x10 + num(flagH)*0x20 + num(flagN)*0x40 + num(flagZ)*0x80)&0xFF;
 		StringBuilder sb = new StringBuilder();
 		sb.append("|pc:" + hex8(mem.read(pc)) + "@" + Integer.toHexString(pc) + "|sp:" + Integer.toHexString(sp) + "("

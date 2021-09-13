@@ -2,8 +2,6 @@ package com.mrh0.gbemu.io;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 
 import com.mrh0.gbemu.cpu.Globals;
 

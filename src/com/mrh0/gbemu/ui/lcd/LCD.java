@@ -1,4 +1,4 @@
-package com.mrh0.gbemu.lcd;
+package com.mrh0.gbemu.ui.lcd;
 
 import java.awt.Color;
 import java.awt.Dimension;
@@ -7,9 +7,7 @@ import java.awt.Graphics2D;
 
 import javax.swing.JPanel;
 
-import com.mrh0.gbemu.cpu.CPU;
 import com.mrh0.gbemu.cpu.Globals;
-import com.mrh0.gbemu.io.Input;
 
 public class LCD extends JPanel {
 
