@@ -5,11 +5,11 @@ import javax.swing.JComponent;
 import com.mrh0.gbemu.Emulator;
 import com.mrh0.gbemu.events.IEmulationEvent;
 
-public class ComponentEmulationEvent implements IEmulationEvent {
+public class EmulationComponentEvent implements IEmulationEvent {
 
 	private JComponent comp;
 	private IComponentEvent event;
-	public ComponentEmulationEvent(JComponent comp, IComponentEvent event) {
+	public EmulationComponentEvent(JComponent comp, IComponentEvent event) {
 		this.comp = comp;
 		this.event = event;
 	}

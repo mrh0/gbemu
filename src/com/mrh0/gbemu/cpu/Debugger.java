@@ -1,4 +1,4 @@
-package com.mrh0.gbemu;
+package com.mrh0.gbemu.cpu;
 
 import java.util.ArrayList;
 import java.util.HashMap;

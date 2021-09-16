@@ -3,9 +3,13 @@ package com.mrh0.gbemu;
 import java.io.File;
 import java.io.IOException;
 
+import com.mrh0.gbemu.io.IO;
+
 public class Main {
 
 	public static void main(String[] args) throws IOException, InterruptedException {
+		//IO.compareLogs();
+		
 		Emulator emu = new Emulator();
 
 		File ROMFile = emu.getWindow().chooseROM();

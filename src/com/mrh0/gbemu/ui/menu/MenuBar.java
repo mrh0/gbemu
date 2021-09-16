@@ -14,7 +14,7 @@ import javax.swing.JRadioButtonMenuItem;
 
 import com.mrh0.gbemu.Emulator;
 import com.mrh0.gbemu.events.EmulationEventType;
-import com.mrh0.gbemu.ui.events.ComponentEmulationEvent;
+import com.mrh0.gbemu.ui.events.EmulationComponentEvent;
 
 public class MenuBar extends JMenuBar {
 	private static final long serialVersionUID = 1L;
@@ -85,6 +85,13 @@ public class MenuBar extends JMenuBar {
 		this.add(screen);
 		
 		sound = new JMenu("Sound");
+		sound.add(new JCheckBoxMenuItem("Mute"));
+		sound.add(child(new JMenu("Channels"),
+			select(new JCheckBoxMenuItem("Channel 1")),
+			select(new JCheckBoxMenuItem("Channel 2")),
+			select(new JCheckBoxMenuItem("Channel 3")),
+			select(new JCheckBoxMenuItem("Channel 4"))
+		));
 		this.add(sound);
 		
 		options = new JMenu("Options");
@@ -112,8 +119,8 @@ public class MenuBar extends JMenuBar {
 		return button;
 	}
 	
-	private <T extends JComponent> T event(T comp, EmulationEventType type, ComponentEmulationEvent.IComponentEvent<T> event) {
-		emulator.addEvent(type, new ComponentEmulationEvent(comp, event));
+	private <T extends JComponent> T event(T comp, EmulationEventType type, EmulationComponentEvent.IComponentEvent<T> event) {
+		emulator.addEvent(type, new EmulationComponentEvent(comp, event));
 		return comp;
 	}
 }

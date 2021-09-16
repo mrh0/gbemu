@@ -4,7 +4,7 @@ import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 
 import com.mrh0.gbemu.Emulator;
-import com.mrh0.gbemu.cpu.Globals;
+import com.mrh0.gbemu.Globals;
 
 public class Input implements KeyListener {
 

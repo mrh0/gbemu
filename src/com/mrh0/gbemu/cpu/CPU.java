@@ -2,10 +2,10 @@ package com.mrh0.gbemu.cpu;
 
 import java.io.FileWriter;
 
-import com.mrh0.gbemu.Debugger;
-import com.mrh0.gbemu.cpu.memory.MemMap;
-import com.mrh0.gbemu.cpu.memory.Memory;
+import com.mrh0.gbemu.Globals;
 import com.mrh0.gbemu.io.IO;
+import com.mrh0.gbemu.memory.MemMap;
+import com.mrh0.gbemu.memory.Memory;
 import com.mrh0.gbemu.ui.lcd.LCD;
 
 public class CPU {
@@ -136,6 +136,18 @@ public class CPU {
 		sb.append("\n");
 		return sb.toString();
 	}
+	
+	public void debugSound() {
+    	StringBuilder sb = new StringBuilder();
+    	sb.append(Integer.toHexString(pc));
+    	for(int i = 0xFF10; i < 0xFF27; i++) {
+    		sb.append(":");
+    		sb.append(Integer.toHexString(mem.read(i)&0xFF));
+    	}
+    	sb.append("\n");
+    	//if(pc>256)
+    		IO.log(logw, sb.toString());
+    }
 	
 	private int getMemSum() {
 		int sum = 0;

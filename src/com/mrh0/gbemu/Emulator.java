@@ -4,13 +4,13 @@ import java.io.File;
 import java.io.IOException;
 
 import com.mrh0.gbemu.cpu.CPU;
-import com.mrh0.gbemu.cpu.Globals;
-import com.mrh0.gbemu.cpu.memory.Memory;
 import com.mrh0.gbemu.events.EmulationEventManager;
 import com.mrh0.gbemu.events.EmulationEventType;
 import com.mrh0.gbemu.events.IEmulationEvent;
 import com.mrh0.gbemu.io.IO;
 import com.mrh0.gbemu.io.Input;
+import com.mrh0.gbemu.memory.Memory;
+import com.mrh0.gbemu.sound.SoundManager;
 import com.mrh0.gbemu.ui.Window;
 import com.mrh0.gbemu.ui.lcd.LCD;
 
@@ -21,6 +21,7 @@ public class Emulator {
 	private LCD lcd;
 	private Window window;
 	private Input input;
+	private SoundManager sound;
 	
 	private final EmulationEventManager eventManager;
 	
@@ -31,16 +32,21 @@ public class Emulator {
 		lcd = new LCD(globals);
 		
 		// Setup Memory:
-		memory = new Memory(globals, 0x10000);
+		memory = new Memory(this, 0x10000);
 		memory.raw()[0xFF41] = 0x01;
 		memory.raw()[0xFF43] = 0x00;
 		// Unknown function:
 		memory.raw()[0xFFF4] = (byte) 0x31;
 		memory.raw()[0xFFF7] = (byte) 0xFF;
 		
+		sound = new SoundManager(this);
+		memory.resetSoundRegisters();
+		
 		cpu = new CPU(memory, lcd, globals);
-		window = createWindow();
+		
 		input = new Input(this);
+		
+		window = createWindow();
 		window.init(this);
 	}
 	
@@ -89,11 +95,20 @@ public class Emulator {
 		return input;
 	}
 	
+	public Memory getMemory() {
+		return memory;
+	}
+	
+	public SoundManager getSound() {
+		return sound;
+	}
+	
 	private static Window createWindow() {
 		Window win = new Window();
 		win.setVisible(true);
 		return win;
 	}
+	
 	
 	public void run() {
 		cpu.reset();
@@ -103,6 +118,7 @@ public class Emulator {
 		long ntime = time + globals.frameTime;
 		int cycles = globals.frameCycles;
 		long cycleSum = 0;
+		
 		while (true) {
 			long nano = System.nanoTime();
 			if(sec < nano) {
@@ -114,7 +130,9 @@ public class Emulator {
 			if (!globals.cpuEnabled)
 				continue;
 			// cpu.debug();
+			//cpu.debugSound();
 			int c = cpu.advance();
+			//sound.tickOutput();
 			cycleSum += c;
 			cycles -= c;
 			while (cycles < 0) {

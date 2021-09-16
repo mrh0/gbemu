@@ -1,4 +1,4 @@
-package com.mrh0.gbemu.cpu.memory;
+package com.mrh0.gbemu.memory;
 
 public enum MemMap {
 	Bank0(0x0000, 0x3FFF),

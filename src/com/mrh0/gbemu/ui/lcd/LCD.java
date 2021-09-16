@@ -7,7 +7,7 @@ import java.awt.Graphics2D;
 
 import javax.swing.JPanel;
 
-import com.mrh0.gbemu.cpu.Globals;
+import com.mrh0.gbemu.Globals;
 
 public class LCD extends JPanel {
 

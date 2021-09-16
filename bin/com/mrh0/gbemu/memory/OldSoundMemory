@@ -1,0 +1,256 @@
+		if (addr >= 0xFF10 && addr <= 0xFF25) {
+			if (!globals.soundEnabled)
+				return;
+			// FF10 - NR10 - Channel 1 Sweep register (R/W)
+			if (addr == 0xFF10) {
+				/*
+				 * sound[1].sweepTime = (data>>4)&0x7; 
+				 * sound[1].sweepPrescaler =
+				 * sound[1].sweepTime; 
+				 * sound[1].sweepDir = (data&(1<<3)) ? 0 : 1;
+				 * sound[1].sweepShift = data&0x7;
+				 */
+				mem[addr] = (byte) (data & 0x80);
+				return;
+			}
+			// FF11 - NR11 - Channel 1 Sound length/Wave pattern duty (R/W)
+			if (addr == 0xFF11) {
+				mem[addr] = data;
+				// sound[1].duty(data>>6)
+				return;
+			}
+			// FF12 - NR12 - Channel 1 Volume Envelope (R/W)
+			if (addr == 0xFF12) {
+				mem[addr] = data;
+				/*
+				 * sound[1].envDirection = (data&(1<<3)) ? 1: -1; sound[1].envSpeed = data&0x7;
+				 * sound[1].envCounter = 0;
+				 */
+				return;
+			}
+			// FF13 - NR13 - Channel 1 Frequency lo (Write Only)
+			if (addr == 0xFF13) {
+				/*
+				 * sound[1].freqnum=(((MEM[0xFF14]&0x7)<<8)+ data); 
+				 * sound[1].freq( 131072/(2048-sound[1].freqnum ) )
+				 */
+				mem[addr] = data;
+				return;
+			}
+			// FF14 - NR14 - Channel 1 Frequency hi (R/W)
+			if (addr == 0xFF14) {
+				// bit 7 is initialize
+				/*
+				 * sound[1].freqnum=(((data&0x7)<<8)+ MEM[0xFF13]); 
+				 * sound[1].freq( 131072/(2048-sound[1].freqnum ) )
+				 */
+				if ((data & (1 << 7)) > 0) {
+					/*
+					 * sound[1].initialized = true sound[1].env = MEM[0xFF12]>>4; // default
+					 * envelope value sound[1].envCounter = 0; 
+					 * sound[1].amp( sound[1].env/15 )
+					 * 
+					 * sound[1].lengthEnabled = (data&(1<<6)) !=0; 
+					 * sound[1].length = (64-(MEM[0xFF11]&0x3F));
+					 */
+
+					mem[0xFF26] |= (1 << 0); // flag sound 1 as on
+					// if (sound[1].sweepShift) {sweepCalculate()}
+				}
+				mem[addr] = data;
+				return;
+			}
+
+			// FF16 - NR21 - Channel 2 Sound Length/Wave Pattern Duty (R/W)
+			// Bit 7-6 - Wave Pattern Duty (Read/Write)
+			// Bit 5-0 - Sound length data (Write Only) (t1: 0-63)
+			if (addr == 0xFF16) {
+				mem[addr] = data;
+				// sound[2].duty(data>>6)
+				return;
+			}
+
+			// FF17 - NR22 - Channel 2 Volume Envelope (R/W)
+			if (addr == 0xFF17) {
+				mem[addr] = data;
+				/*
+				 * sound[2].envDirection = (data&(1<<3)) ? 1: -1; 
+				 * sound[2].envSpeed = data&0x7;
+				 * sound[2].envCounter = 0;
+				 */
+				return;
+			}
+			// FF18 - NR23 - Channel 2 Frequency lo data (W)
+			if (addr == 0xFF18) {
+				// sound[2].freq( 131072/(2048- (((MEM[0xFF19]&0x7)<<8)+ data) ) )
+				mem[addr] = data;
+				return;
+			}
+			// FF19 - NR24 - Channel 2 Frequency hi data (R/W)
+			if (addr == 0xFF19) {
+				// sound[2].freq( 131072/(2048- (((data&0x7)<<8)+ MEM[0xFF18]) ) )
+				// bit 7 is initialize
+				if ((data & (1 << 7)) > 0) {
+					/*
+					 * sound[2].initialized = true;
+					 * sound[2].env = MEM[0xFF17]>>4; //Default envelope
+					 * sound[2].envCounter = 0; 
+					 * sound[2].amp( sound[2].env/15 )
+					 * 
+					 * sound[2].lengthEnabled = (data&(1<<6)) !=0; 
+					 * sound[2].length = (64-(MEM[0xFF16]&0x3F));
+					 */
+					mem[0xFF26] |= (1 << 1); // flag sound 2 as on
+				}
+				mem[addr] = data;
+				return;
+			}
+
+			// Sound 3 - user-defined waveform
+			// "it can output a sound while changing its length, frequency, and level"
+			// not sure what changing its length means
+
+			// FF1A - NR30 - Channel 3 Sound on/off (R/W)
+			if (addr == 0xFF1A) {
+				if ((data & (1 << 7)) > 0) {
+					// sound[3].initialized=true;
+
+					// is this the right (only?) place to load the waveform?
+					// setSound3Waveform()
+
+				} else {
+					// sound[3].initialized=false;
+					// sound[3].amp(0)
+				}
+				return;
+			}
+			// FF1B - NR31 - Channel 3 Sound Length
+			if (addr == 0xFF1B) {
+				mem[addr] = data;
+				return;
+			}
+			// FF1C - NR32 - Channel 3 Select output level (R/W)
+			if (addr == 0xFF1C) {
+				// Really we ought to bit-crush it, but whatever
+				// if (sound[3].initialized)
+				// sound[3].amp( [ 0,0.5,0.25,0.125 ][((data>>5)&0x3)] )
+				mem[addr] = data;
+				return;
+			}
+
+			// FF1D - NR33 - Channel 3 Frequency's lower data (W)
+			if (addr == 0xFF1D) {
+				// sound[3].freq( 65536/(2048- (((MEM[0xFF1E]&0x7)<<8)+ data) ) )
+				mem[addr] = data;
+				return;
+			}
+			// FF1E - NR34 - Channel 3 Frequency's higher data (R/W)
+			if (addr == 0xFF1E) {
+				// sound[3].freq( 65536/(2048- (((data&0x7)<<8)+ MEM[0xFF1D]) ) )
+				// bit 7 is initialize
+				if ((data & (1 << 7)) > 0) {
+
+					/*
+					 * sound[3].initialized = true
+					 * 
+					 * sound[3].amp( [ 0,0.5,0.25,0.15 ][((MEM[0xFF1C]>>5)&0x3)] )
+					 * 
+					 * sound[3].lengthEnabled = (data&(1<<6)) !=0; 
+					 * sound[3].length = (256-MEM[0xFF1B]);
+					 */
+
+					mem[0xFF26] |= (1 << 2); // flag sound 3 as on
+				}
+				mem[addr] = data;
+				return;
+			}
+
+			// Sound 4 - Noise
+			// FF20 - NR41 - Channel 4 Sound Length (R/W)
+			if (addr == 0xFF20) {
+				mem[addr] = data;
+				return;
+			}
+			// FF21 - NR42 - Channel 4 Volume Envelope (R/W)
+			if (addr == 0xFF21) {
+				mem[addr] = data;
+				/*
+				 * sound[4].envDirection = (data&(1<<3)) ? 1: -1; 
+				 * sound[4].envSpeed = data&0x7;
+				 * sound[4].envCounter = 0;
+				 */
+				return;
+			}
+			// FF22 - NR43 - Channel 4 Polynomial Counter (R/W)
+			if (addr == 0xFF22) {
+				/*
+				 * sound[4].freq(data>>4, data&0x7);
+				 * sound[4].polySteps(data&(1<<3));
+				 */
+
+				mem[addr] = data;
+				return;
+			}
+			// FF23 - NR44 - Channel 4 Counter/consecutive; Inital (R/W)
+			if (addr == 0xFF23) {
+
+				/*
+				 * sound[4].initialized = true; 
+				 * sound[4].env = MEM[0xFF21]>>4; //Default envelope
+				 * value sound[4].envCounter = 0; 
+				 * sound[4].amp( sound[4].env/15 )
+				 * sound[4].length = (64-(MEM[0xFF20]&0x3F));
+				 */
+
+				mem[0xFF26] |= (1 << 3); // flag sound 4 as on
+
+				// sound[4].lengthEnabled = (data&(1<<6)) !=0;
+				mem[addr] = data;
+				return;
+			}
+
+			// FF24 - NR50 - Channel control / ON-OFF / Volume (R/W)
+			if (addr == 0xFF24) {
+				// Bit 7 - Output Vin to SO2 terminal (1=Enable)
+				// Bit 6-4 - SO2 output level (volume) (0-7)
+				// Bit 3 - Output Vin to SO1 terminal (1=Enable)
+				// Bit 2-0 - SO1 output level (volume) (0-7)
+
+				// is level zero mute ? "minimum level"
+				/*
+				 * sound.SO2.gain.setValueAtTime(((data>>4)&0x7)/7, audioCtx.currentTime)
+				 * sound.SO1.gain.setValueAtTime((data&0x7)/7, audioCtx.currentTime)
+				 */
+				mem[addr] = data;
+				return;
+			}
+
+			// FF25 - NR51 - Selection of Sound output terminal (R/W)
+			if (addr == 0xff25) {
+
+				/*
+				 * var con = (MEM[0xff25]^data) & data; 
+				 * var dis = (MEM[0xff25]^data) & (~data);
+				 * 
+				 * for (var i=0;i<4;i++) { 
+				 * if (con&(1<<i))
+				 * 	sound[i+1].gainNode.connect(sound.SO1) 
+				 * if (dis&(1<<i))
+				 * 	sound[i+1].gainNode.disconnect(sound.SO1) 
+				 * if (con&(1<<(4+i)))
+				 * 	sound[i+1].gainNode.connect(sound.SO2) 
+				 * if (dis&(1<<(4+i)))
+				 * 	sound[i+1].gainNode.disconnect(sound.SO2) 
+				 * }
+				 */
+
+				mem[addr] = data;
+				return;
+			}
+
+			return;
+		}
+		/*
+		 * if (addr>=0xFF30 && addr<=0xFF3F) 
+		 * 	sound[3].waveChanged=true;
+		 */
