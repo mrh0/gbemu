@@ -27,15 +27,15 @@ public class Memory {
 	}
 
 	public void resetSoundRegisters() {
-		write(0xFF10, (byte) 0x80); // NR10
+		/*write(0xFF10, (byte) 0x80); // NR10
 		write(0xFF11, (byte) 0xBF); // NR11
 		write(0xFF12, (byte) 0xF3); // NR12
-		write(0xFF13, (byte) 0x00);
+		write(0xFF13, (byte) 0x00); // NR13
 		write(0xFF14, (byte) 0xBF); // NR14
 		write(0xFF15, (byte) 0xFF); // NA
 		write(0xFF16, (byte) 0x3F); // NR21
 		write(0xFF17, (byte) 0x00); // NR22
-		write(0xFF18, (byte) 0x00);
+		write(0xFF18, (byte) 0x00); // NR23
 		write(0xFF19, (byte) 0xBF); // NR24
 		write(0xFF1A, (byte) 0x7F); // NR30
 		write(0xFF1B, (byte) 0xFF); // NR31
@@ -49,7 +49,7 @@ public class Memory {
 		write(0xFF23, (byte) 0xBF); // NR30
 		write(0xFF24, (byte) 0x77); // NR50
 		// write(0xFF25, (byte) 0xF3)); // NR51
-		write(0xFF26, (byte) 0xF1); // NR52
+		write(0xFF26, (byte) 0xF1); // NR52*/
 
 	}
 
@@ -65,13 +65,10 @@ public class Memory {
 		if (addr >= MemMap.ExtRAM.start && addr <= MemMap.ExtRAM.end)
 			return (byte) (cartRAM[addr + emulator.getGlobals().RAMbankoffset] & 0xFF);
 		
-		if(addr >= 0xFF10 && addr <= 0xFF3F)
-			System.out.println("Reading: " + Integer.toHexString(addr) + ":" + Integer.toHexString(mem[addr]&0xFF));
-		
 		// Sound
-		if (addr >= 0xFF10 && addr <= 0xFF27) {
+		if (addr >= 0xFF10 && addr < 0xFF30) {
 			byte r = (byte) (emulator.getSound().read(addr)&0xFF);
-			//System.out.println("Reading: " + Integer.toHexString(addr) + ":" + Integer.toHexString(r&0xFF));
+			System.out.println("Reading: " + Integer.toHexString(addr) + ":" + Integer.toHexString(r&0xFF));
 			return r;
 		}
 		if(addr >= 0xFF30 && addr <= 0xFF3F) {
@@ -141,7 +138,7 @@ public class Memory {
 			return;
 		}*/
 
-		if (addr >= 0xFF10 && addr <= 0xFF26) {
+		if (addr >= 0xFF10 && addr < 0xFF30) {
 			//System.out.println("Writing: " + Integer.toHexString(addr) + ":" + Integer.toHexString(((int)data)&0xFF));
 			emulator.getSound().write(addr, ((int)data)&0xFF);
 		}

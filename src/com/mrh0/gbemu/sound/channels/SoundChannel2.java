@@ -41,9 +41,8 @@ public class SoundChannel2 extends AbstractSoundChannel {
         boolean e = true;
         e = updateLength() && e;
         e = DACEnabled && e;
-        if (!e) {
+        if (!e)
             return 0;
-        }
 
         if (--freqDivider == 0) {
             resetFreqDivider();

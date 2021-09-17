@@ -131,8 +131,10 @@ public class Emulator {
 				continue;
 			// cpu.debug();
 			//cpu.debugSound();
+			
 			int c = cpu.advance();
-			//sound.tickOutput();
+			sound.tickOutput();
+			
 			cycleSum += c;
 			cycles -= c;
 			while (cycles < 0) {

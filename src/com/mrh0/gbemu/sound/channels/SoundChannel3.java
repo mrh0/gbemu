@@ -73,7 +73,7 @@ public class SoundChannel3 extends AbstractSoundChannel {
 			return waveRAM[addr-WAVE_RAM];
 		else if(withinWave(lastReadAddr) && (globals.gbcMode || ticksSinceRead < 2))
 			return waveRAM[lastReadAddr-WAVE_RAM];
-		return 0xff;
+		return 0xFF;
 	}
 	
 	public void writeWave(int addr, int value) {
@@ -85,7 +85,7 @@ public class SoundChannel3 extends AbstractSoundChannel {
 	}
 	
 	private boolean withinWave(int addr) {
-		return addr-WAVE_RAM>=0 && addr-WAVE_RAM <= getWave().length;
+		return addr-WAVE_RAM>=0 && addr-WAVE_RAM < getWave().length;
 	}
 
 	@Override
@@ -143,7 +143,7 @@ public class SoundChannel3 extends AbstractSoundChannel {
 	private int getWaveEntry() {
 		ticksSinceRead = 0;
 		lastReadAddr = 0xff30 + i / 2;
-		buffer = waveRAM[lastReadAddr - SOUND_ADDR];
+		buffer = waveRAM[lastReadAddr - WAVE_RAM];
 		
 		int b = buffer;
 		

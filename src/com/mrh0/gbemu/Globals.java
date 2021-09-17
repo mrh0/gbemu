@@ -22,7 +22,7 @@ public class Globals {
 	public final int frameCycles = 70256;
 	public final float secondCycles = ((float)frameCycles)*59.7f;
 	
-	public boolean soundEnabled = false;
+	//public boolean soundEnabled = false;
 	public boolean cpuEnabled = true;
 	
 	public static final int soundTicksPerSec = 4194304;

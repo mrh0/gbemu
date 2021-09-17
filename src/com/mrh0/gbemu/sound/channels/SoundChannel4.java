@@ -16,9 +16,8 @@ public class SoundChannel4 extends AbstractSoundChannel {
 
     @Override
     public void start() {
-        if (globals.gbcMode) {
+        if (globals.gbcMode)
             length.reset();
-        }
         length.start();
         lfsr.start();
         volumeEnvelope.start();
@@ -34,16 +33,14 @@ public class SoundChannel4 extends AbstractSoundChannel {
     public int getOutput() {
         volumeEnvelope.tick();
 
-        if (!updateLength()) {
+        if (!updateLength())
             return 0;
-        }
-        if (!DACEnabled) {
+        if (!DACEnabled)
             return 0;
-        }
 
-        if (polynomialCounter.tick()) {
+        if (polynomialCounter.tick())
             lastResult = lfsr.nextBit((get3() & (1 << 3)) != 0);
-        }
+        
         return lastResult * volumeEnvelope.getVolume();
     }
 

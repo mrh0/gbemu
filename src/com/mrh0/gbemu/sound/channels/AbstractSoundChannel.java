@@ -24,14 +24,11 @@ public abstract class AbstractSoundChannel {
     public abstract void start();
 
     public void stop() {
-    	setEnabled(false);
+    	enabled = false;
     }
 	
 	public boolean isEnabled() {
-		return enabled;
-	}
-	public void setEnabled(boolean state) {
-		enabled = state;
+		return enabled && DACEnabled;
 	}
 	
 	public abstract int getOffset();
@@ -59,8 +56,13 @@ public abstract class AbstractSoundChannel {
 	}
 	
 	public void set4(int value) {
-		nr[4] = value;
-	}
+        nr[4] = value;
+        length.set4(value);
+        if ((value & (1 << 7)) != 0) {
+            enabled = DACEnabled;
+            trigger();
+        }
+    }
 	
 	public int get0() {
 		return nr[0];
@@ -85,12 +87,13 @@ public abstract class AbstractSoundChannel {
 	protected boolean updateLength() {
         length.tick();
         if (!length.isEnabled()) {
-            return isEnabled();
+            return enabled;
         }
-        if (isEnabled() && length.getValue() == 0) {
-        	setEnabled(false);
+        if (enabled && length.getValue() == 0) {
+        	enabled = false;
+        	System.out.println("Len Set 0");
         }
-        return isEnabled();
+        return enabled;
     }
 	
 	public class SoundEnvelope {
