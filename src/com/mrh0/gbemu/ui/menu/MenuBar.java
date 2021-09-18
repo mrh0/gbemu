@@ -87,10 +87,10 @@ public class MenuBar extends JMenuBar {
 		sound = new JMenu("Sound");
 		sound.add(new JCheckBoxMenuItem("Mute"));
 		sound.add(child(new JMenu("Channels"),
-			select(new JCheckBoxMenuItem("Channel 1")),
-			select(new JCheckBoxMenuItem("Channel 2")),
-			select(new JCheckBoxMenuItem("Channel 3")),
-			select(new JCheckBoxMenuItem("Channel 4"))
+			action(select(new JCheckBoxMenuItem("Channel 1")), (e) -> emulator.getGlobals().uiChannelEnable[0] = !emulator.getGlobals().uiChannelEnable[0]),
+			action(select(new JCheckBoxMenuItem("Channel 2")), (e) -> emulator.getGlobals().uiChannelEnable[1] = !emulator.getGlobals().uiChannelEnable[1]),
+			action(select(new JCheckBoxMenuItem("Channel 3")), (e) -> emulator.getGlobals().uiChannelEnable[2] = !emulator.getGlobals().uiChannelEnable[2]),
+			action(select(new JCheckBoxMenuItem("Channel 4")), (e) -> emulator.getGlobals().uiChannelEnable[3] = !emulator.getGlobals().uiChannelEnable[3])
 		));
 		this.add(sound);
 		

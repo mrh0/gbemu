@@ -1,5 +1,8 @@
 package com.mrh0.gbemu.sound;
 
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
+
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
@@ -18,7 +21,7 @@ public class SoundManager {
 	private Emulator emulator;
 
 	private static final int SAMPLE_RATE = 22050;
-	private static final int BUFFER_SIZE = 1024;
+	private static final int BUFFER_SIZE = 2*70256;//1024;
 	private static final AudioFormat FORMAT = new AudioFormat(AudioFormat.Encoding.PCM_UNSIGNED, SAMPLE_RATE, 8, 2, 2, SAMPLE_RATE, false);
 
 	//Sound
@@ -100,11 +103,27 @@ public class SoundManager {
 
 		buffer[index++] = (byte) (left);
 		buffer[index++] = (byte) (right);
+		
+		/*if (index > BUFFER_SIZE/2) {
+			
+			index = 0;
+		}*/
 
-		if (index > BUFFER_SIZE/2) {
+		/*if (index > BUFFER_SIZE/2) {
+			//while(line.available() < buffer.length/2) {}
+			if(line.available() < buffer.length/2) {
+				index = 0;
+				return;
+			}
 			line.write(buffer, 0, index);
 			index = 0;
-		}
+		}*/
+	}
+	
+	public void writeAll() {
+		if(line != null)
+			line.write(buffer, 0, index);
+		index = 0;
 	}
 
 	private void start() {
@@ -146,8 +165,8 @@ public class SoundManager {
 		int left = 0;
 		int right = 0;
 		for (int i = 0; i < 4; i++) {
-			// if (!overridenEnabled[i])
-			// continue;
+			if (!emulator.getGlobals().uiChannelEnable[i])
+				continue;
 			if ((selection & (1 << i + 4)) != 0) {
 				left += channels[i];
 			}
@@ -310,5 +329,11 @@ public class SoundManager {
 			allChannels[2].set4(val);
 			return;
 		}
+	}
+	
+	public void waitFor() {
+		if(line == null)
+			return;
+		while(line.available() < BUFFER_SIZE/2) {}
 	}
 }

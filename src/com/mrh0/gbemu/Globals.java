@@ -25,7 +25,9 @@ public class Globals {
 	//public boolean soundEnabled = false;
 	public boolean cpuEnabled = true;
 	
-	public static final int soundTicksPerSec = 4194304;
+	public static final int soundTicksPerSec = 4194283;//4194304;
+	
+	public boolean[] uiChannelEnable = {true, true, true, true};
 	
 	public boolean gbcMode = false;
 

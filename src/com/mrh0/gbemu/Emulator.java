@@ -14,7 +14,7 @@ import com.mrh0.gbemu.sound.SoundManager;
 import com.mrh0.gbemu.ui.Window;
 import com.mrh0.gbemu.ui.lcd.LCD;
 
-public class Emulator {
+public class Emulator implements Runnable {
 	private Globals globals;
 	private CPU cpu;
 	private Memory memory;
@@ -109,7 +109,7 @@ public class Emulator {
 		return win;
 	}
 	
-	
+	@Override
 	public void run() {
 		cpu.reset();
 		int relativePercent = 1;
@@ -118,6 +118,7 @@ public class Emulator {
 		long ntime = time + globals.frameTime;
 		int cycles = globals.frameCycles;
 		long cycleSum = 0;
+		
 		
 		while (true) {
 			long nano = System.nanoTime();
@@ -130,8 +131,7 @@ public class Emulator {
 			if (!globals.cpuEnabled)
 				continue;
 			// cpu.debug();
-			//cpu.debugSound();
-			
+
 			int c = cpu.advance();
 			sound.tickOutput();
 			
@@ -139,9 +139,9 @@ public class Emulator {
 			cycles -= c;
 			while (cycles < 0) {
 				if ((time = System.nanoTime()) > ntime) {
-					
 					ntime = time + globals.frameTime;
 					cycles = globals.frameCycles;
+					sound.writeAll();
 				}
 			}
 		}

@@ -2,6 +2,8 @@ package com.mrh0.gbemu;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 import com.mrh0.gbemu.io.IO;
 
@@ -17,6 +19,6 @@ public class Main {
 			System.err.println("Invalid file selected.");
 			System.exit(0);
 		}
-		emu.run();
+		new Thread(emu).start();
 	}
 }

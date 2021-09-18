@@ -68,7 +68,7 @@ public class Memory {
 		// Sound
 		if (addr >= 0xFF10 && addr < 0xFF30) {
 			byte r = (byte) (emulator.getSound().read(addr)&0xFF);
-			System.out.println("Reading: " + Integer.toHexString(addr) + ":" + Integer.toHexString(r&0xFF));
+			//System.out.println("Reading: " + Integer.toHexString(addr) + ":" + Integer.toHexString(r&0xFF));
 			return r;
 		}
 		if(addr >= 0xFF30 && addr <= 0xFF3F) {
