@@ -53,9 +53,9 @@ public class SoundManager {
 		allChannels[2] = new SoundChannel3(emulator.getGlobals());
 		allChannels[3] = new SoundChannel4(emulator.getGlobals());
 		
-		divider = (int) (Globals.ticksPerSec / FORMAT.getSampleRate());
+		divider = (int) (Globals.cyclesPerSec / FORMAT.getSampleRate());
 		
-		buffer = new byte[(Globals.ticksPerSec/divider)];
+		buffer = new byte[(Globals.cyclesPerSec/divider)];
 	}
 
 	public int readWaveRAM(int addr) {

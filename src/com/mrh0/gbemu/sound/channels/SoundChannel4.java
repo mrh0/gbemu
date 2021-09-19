@@ -16,7 +16,7 @@ public class SoundChannel4 extends AbstractSoundChannel {
 
     @Override
     public void start() {
-        if (globals.gbcMode)
+        if (globals.CGBMode)
             length.reset();
         length.start();
         lfsr.start();

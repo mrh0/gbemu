@@ -30,7 +30,7 @@ public class SoundChannel3 extends AbstractSoundChannel {
 	}
 
 	private int[] getWave() {
-		return globals.gbcMode ? CGB_WAVE : DMG_WAVE;
+		return globals.CGBMode ? CGB_WAVE : DMG_WAVE;
 	}
 
 	@Override
@@ -53,7 +53,7 @@ public class SoundChannel3 extends AbstractSoundChannel {
 
 	@Override
 	public void set4(int value) {
-		if (!globals.gbcMode && (value & (1 << 7)) != 0) {
+		if (!globals.CGBMode && (value & (1 << 7)) != 0) {
 			if (isEnabled() && freqDivider == 2) {
 				int pos = i / 2;
 				if (pos < 4) {
@@ -71,7 +71,7 @@ public class SoundChannel3 extends AbstractSoundChannel {
 	public int readWave(int addr) {
 		if(!isEnabled())
 			return waveRAM[addr-WAVE_RAM];
-		else if(withinWave(lastReadAddr) && (globals.gbcMode || ticksSinceRead < 2))
+		else if(withinWave(lastReadAddr) && (globals.CGBMode || ticksSinceRead < 2))
 			return waveRAM[lastReadAddr-WAVE_RAM];
 		return 0xFF;
 	}
@@ -79,7 +79,7 @@ public class SoundChannel3 extends AbstractSoundChannel {
 	public void writeWave(int addr, int value) {
 		if (!isEnabled()) {
 			waveRAM[addr-WAVE_RAM] = value;
-        } else if (withinWave(lastReadAddr) && (globals.gbcMode || ticksSinceRead < 2)) {
+        } else if (withinWave(lastReadAddr) && (globals.CGBMode || ticksSinceRead < 2)) {
         	waveRAM[lastReadAddr-WAVE_RAM] = value;
         }
 	}
@@ -97,7 +97,7 @@ public class SoundChannel3 extends AbstractSoundChannel {
 	public void start() {
 		i = 0;
 		buffer = 0;
-		if (globals.gbcMode)
+		if (globals.CGBMode)
 			length.reset();
 		length.start();
 	}
@@ -106,8 +106,8 @@ public class SoundChannel3 extends AbstractSoundChannel {
 	public void trigger() {
 		i = 0;
 		freqDivider = 6;
-		triggered = !globals.gbcMode;
-		if (globals.gbcMode)
+		triggered = !globals.CGBMode;
+		if (globals.CGBMode)
 			getWaveEntry();
 	}
 

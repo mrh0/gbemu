@@ -123,7 +123,7 @@ public class Emulator implements Runnable {
 			long nano = System.nanoTime();
 			if(sec < nano) {
 				sec = nano + 1000000000;
-				relativePercent = (int) (100f * ((float)cycleSum)/Globals.ticksPerSec);
+				relativePercent = (int) (100f * ((float)cycleSum)/Globals.cyclesPerSec);
 				cycleSum = 0;
 			}
 			windowTick(window, globals, relativePercent);
@@ -164,20 +164,37 @@ public class Emulator implements Runnable {
 		byte[] rom = IO.readROM(file);
 		globals.FirstROMPage = new byte[256];
 		byte[] bootcode = parseBootcode();
+		
+		globals.CGBMode = rom[0x0143] == 0xc0;
+		globals.universalMode = rom[0x0143] == 0x80;
+		
 		for (int i = 0; i < 256; i++) {
 			globals.FirstROMPage[i] = rom[i];
 			rom[i] = bootcode[i];
 		}
-		System.out.println("Loaded ROM (" + rom.length + "bytes).");
+		
+		String title = getTitle(rom);
+		String mode = (globals.CGBMode?"CGB":(globals.universalMode?"Universal":"DMG"));
+		System.out.println("Loaded "+mode+" ROM '"+title+"' (" + rom.length + "bytes)." );
 		return rom;
 	}
+	
+	 private static String getTitle(byte[] rom) {
+	        StringBuilder t = new StringBuilder();
+	        for (int i = 0x0134; i < 0x0143; i++) {
+	            char c = (char) rom[i];
+	            if (c == 0)
+	                break;
+	            t.append(c);
+	        }
+	        return t.toString();
+	    }
 
 	private byte[] parseBootcode() {
-		String[] splt = globals.bootcode.split(" ");
+		String[] splt = globals.bootcodeDMG.split(" ");
 		byte[] bytes = new byte[splt.length];
-		for (int i = 0; i < splt.length; i++) {
+		for (int i = 0; i < splt.length; i++)
 			bytes[i] = (byte) Integer.parseInt(splt[i], 16);
-		}
 		return bytes;
 	}
 	

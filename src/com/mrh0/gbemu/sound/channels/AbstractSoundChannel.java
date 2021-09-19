@@ -132,7 +132,7 @@ public abstract class AbstractSoundChannel {
 	            finished = true;
 	            return;
 	        }
-	        if (++i == sweep * Globals.ticksPerSec / 64) {
+	        if (++i == sweep * Globals.cyclesPerSec / 64) {
 	            i = 0;
 	            volume += envelopeDirection;
 	        }
@@ -148,7 +148,7 @@ public abstract class AbstractSoundChannel {
 	}
 	
 	public class SoundSweep {
-		private static final int DIVIDER = Globals.ticksPerSec / 128;
+		private static final int DIVIDER = Globals.cyclesPerSec / 128;
 
 	    // sweep parameters
 	    private int period;
@@ -252,7 +252,7 @@ public abstract class AbstractSoundChannel {
 	
 	public class SoundLength {
 		
-		private final int DIVIDER = Globals.ticksPerSec / 256;
+		private final int DIVIDER = Globals.cyclesPerSec / 256;
 	    private final int fullLength;
 	    private int length;
 	    private long i;

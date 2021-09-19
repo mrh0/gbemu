@@ -23,7 +23,7 @@ public class SoundChannel1 extends AbstractSoundChannel {
     @Override
     public void start() {
         i = 0;
-        if (globals.gbcMode) {
+        if (globals.CGBMode) {
             length.reset();
         }
         length.start();
