@@ -20,12 +20,12 @@ public class Globals {
 	
 	public final long frameTime = 16750418;
 	public final int frameCycles = 70256;
-	public final float secondCycles = ((float)frameCycles)*59.7f;
+	//public final float secondCycles = ((float)frameCycles)*59.7f;
 	
 	//public boolean soundEnabled = false;
 	public boolean cpuEnabled = true;
 	
-	public static final int soundTicksPerSec = 4194283;//4194304;
+	public static final int ticksPerSec = 4194304;//4194283 my;
 	
 	public boolean[] uiChannelEnable = {true, true, true, true};
 	

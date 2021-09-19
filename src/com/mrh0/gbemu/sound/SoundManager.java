@@ -1,8 +1,5 @@
 package com.mrh0.gbemu.sound;
 
-import java.util.Queue;
-import java.util.concurrent.LinkedBlockingQueue;
-
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
@@ -20,12 +17,12 @@ import com.mrh0.gbemu.sound.channels.SoundChannel4;
 public class SoundManager {
 	private Emulator emulator;
 
-	private static final int SAMPLE_RATE = 22050;
-	private static final int BUFFER_SIZE = 2*70256;//1024;
-	private static final AudioFormat FORMAT = new AudioFormat(AudioFormat.Encoding.PCM_UNSIGNED, SAMPLE_RATE, 8, 2, 2, SAMPLE_RATE, false);
-
+	public static final int SAMPLE_RATE = 22050;
+	public static final int BUFFER_SIZE = 1024;
+	private static final AudioFormat FORMAT = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, SAMPLE_RATE, 8, 2, 2, SAMPLE_RATE, false);
+//new AudioFormat(SAMPLE_RATE, 8, 2, true, false);
 	//Sound
-	private SourceDataLine line;
+	private SourceDataLine line = null;
 	private byte[] buffer;
 
 	//Output
@@ -55,6 +52,10 @@ public class SoundManager {
 		allChannels[1] = new SoundChannel2(emulator.getGlobals());
 		allChannels[2] = new SoundChannel3(emulator.getGlobals());
 		allChannels[3] = new SoundChannel4(emulator.getGlobals());
+		
+		divider = (int) (Globals.ticksPerSec / FORMAT.getSampleRate());
+		
+		buffer = new byte[(Globals.ticksPerSec/divider)];
 	}
 
 	public int readWaveRAM(int addr) {
@@ -67,35 +68,40 @@ public class SoundManager {
 
 	public void startOutput() {
 		if (line != null) {
-			System.out.println("Sound already started");
 			return;
 		}
-		System.out.println("Start-SMOut");
+
 		try {
 			line = AudioSystem.getSourceDataLine(FORMAT);
-			line.open(FORMAT, BUFFER_SIZE);
+			line.open(FORMAT, buffer.length);
 		} catch (LineUnavailableException e) {
 			throw new RuntimeException(e);
 		}
 		line.start();
-		buffer = new byte[line.getBufferSize()];
-		divider = (int) (Globals.soundTicksPerSec / FORMAT.getSampleRate());
+		
+		
 	}
 
 	public void stopOutput() {
-		if (line == null)
-			System.out.println("Can't stop - sound wasn't started");
 		line.drain();
 		line.stop();
 		line = null;
 	}
+	
+	public int getDiv() {
+		return divider;
+	}
+	
+	public boolean isEnabled() {
+		return masterEnable;
+	}
 
-	public void playOutput(byte left, byte right) {
+	public void output(byte left, byte right) {
 		if (tick++ != 0) {
 			tick %= divider;
 			return;
 		}
-
+		
 		if (!(left >= 0 && left < 256 && right >= 0 && right < 256)) {
 			System.err.println("Sound argument error");
 			return;
@@ -104,30 +110,16 @@ public class SoundManager {
 		buffer[index++] = (byte) (left);
 		buffer[index++] = (byte) (right);
 		
-		/*if (index > BUFFER_SIZE/2) {
-			
-			index = 0;
-		}*/
-
-		/*if (index > BUFFER_SIZE/2) {
-			//while(line.available() < buffer.length/2) {}
-			if(line.available() < buffer.length/2) {
-				index = 0;
-				return;
-			}
+		if(line == null)
+			return;
+		
+		if (index > buffer.length/2) {
 			line.write(buffer, 0, index);
 			index = 0;
-		}*/
+		}
 	}
 	
-	public void writeAll() {
-		if(line != null)
-			line.write(buffer, 0, index);
-		index = 0;
-	}
-
 	private void start() {
-		System.out.println("Start-SM");
 		for (int i = 0xff10; i <= 0xff25; i++) {
 			int v = 0;
 			// lengths should be preserved
@@ -151,10 +143,13 @@ public class SoundManager {
 			s.stop();
 		}
 	}
-
+	
+	private boolean onceEnabled = false;
 	public void tickOutput() {
-		if (!masterEnable)
+		if (!masterEnable && !onceEnabled) {
 			return;
+		}
+		onceEnabled = true;
 
 		for (int i = 0; i < 4; i++) {
 			AbstractSoundChannel s = allChannels[i];
@@ -181,7 +176,7 @@ public class SoundManager {
 		left *= ((volumes >> 4) & 0b111);
 		right *= (volumes & 0b111);
 
-		playOutput((byte) left, (byte) right);
+		output((byte) left, (byte) right);
 	}
 
 	public int getUnmasked(int addr) {
@@ -329,11 +324,5 @@ public class SoundManager {
 			allChannels[2].set4(val);
 			return;
 		}
-	}
-	
-	public void waitFor() {
-		if(line == null)
-			return;
-		while(line.available() < BUFFER_SIZE/2) {}
 	}
 }

@@ -119,12 +119,11 @@ public class Emulator implements Runnable {
 		int cycles = globals.frameCycles;
 		long cycleSum = 0;
 		
-		
 		while (true) {
 			long nano = System.nanoTime();
 			if(sec < nano) {
 				sec = nano + 1000000000;
-				relativePercent = (int) (100f * ((float)cycleSum)/globals.secondCycles);
+				relativePercent = (int) (100f * ((float)cycleSum)/Globals.ticksPerSec);
 				cycleSum = 0;
 			}
 			windowTick(window, globals, relativePercent);
@@ -133,7 +132,8 @@ public class Emulator implements Runnable {
 			// cpu.debug();
 
 			int c = cpu.advance();
-			sound.tickOutput();
+			for(int i = 0; i < c; i++)
+				sound.tickOutput();
 			
 			cycleSum += c;
 			cycles -= c;
@@ -141,9 +141,9 @@ public class Emulator implements Runnable {
 				if ((time = System.nanoTime()) > ntime) {
 					ntime = time + globals.frameTime;
 					cycles = globals.frameCycles;
-					sound.writeAll();
 				}
 			}
+			
 		}
 	}
 	

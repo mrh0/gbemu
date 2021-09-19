@@ -73,7 +73,7 @@ public class IO {
 	
 	public static void sleep(int t) {
 		try {
-			System.out.println("Sleep " + t + "ms");
+			//System.out.println("Sleep " + t + "ms");
 			Thread.sleep(t);
 		} catch (InterruptedException e) {
 			e.printStackTrace();

@@ -91,7 +91,6 @@ public abstract class AbstractSoundChannel {
         }
         if (enabled && length.getValue() == 0) {
         	enabled = false;
-        	System.out.println("Len Set 0");
         }
         return enabled;
     }
@@ -133,7 +132,7 @@ public abstract class AbstractSoundChannel {
 	            finished = true;
 	            return;
 	        }
-	        if (++i == sweep * Globals.soundTicksPerSec / 64) {
+	        if (++i == sweep * Globals.ticksPerSec / 64) {
 	            i = 0;
 	            volume += envelopeDirection;
 	        }
@@ -149,7 +148,7 @@ public abstract class AbstractSoundChannel {
 	}
 	
 	public class SoundSweep {
-		private static final int DIVIDER = Globals.soundTicksPerSec / 128;
+		private static final int DIVIDER = Globals.ticksPerSec / 128;
 
 	    // sweep parameters
 	    private int period;
@@ -253,7 +252,7 @@ public abstract class AbstractSoundChannel {
 	
 	public class SoundLength {
 		
-		private final int DIVIDER = Globals.soundTicksPerSec / 256;
+		private final int DIVIDER = Globals.ticksPerSec / 256;
 	    private final int fullLength;
 	    private int length;
 	    private long i;
