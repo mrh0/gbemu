@@ -12,10 +12,10 @@ public class IO {
 	public static final String logPath = "C:\\Games\\GB\\log.txt";
 	public static final String otherLogPath = "C:\\Games\\GB\\other.txt";
 	
-	public static byte[] readROM(File file) throws IOException {
+	public static byte[] readBin(File file) throws IOException {
 		return Files.readAllBytes(file.toPath());
 	}
-	
+
 	public static FileWriter logWriter() {
 		File file = new File(logPath);
 		if(file.exists() && file.isFile())

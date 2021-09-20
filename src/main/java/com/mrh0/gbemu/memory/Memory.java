@@ -140,21 +140,6 @@ public class Memory {
 			return;
 		}
 
-		/*if (addr == 0xFF26) {
-			if ((data & (1 << 7)) > 0) {
-				mem[0xFF26] = (byte) (data & (1 << 7));
-				emulator.getGlobals().soundEnabled = true;
-				// audioCtx.resume()
-			} else {
-				emulator.getGlobals().soundEnabled = false;
-				// should we set each oscillator to amplitude zero too?
-				// audioCtx.suspend()
-				// Zero all sound registers
-				resetSoundRegisters();
-			}
-			return;
-		}*/
-
 		if (addr >= 0xFF10 && addr < 0xFF30) {
 			//System.out.println("Writing: " + Integer.toHexString(addr) + ":" + Integer.toHexString(((int)data)&0xFF));
 			emulator.getSound().write(addr, ((int)data)&0xFF);

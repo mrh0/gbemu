@@ -2,6 +2,9 @@ package com.mrh0.gbemu;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import com.mrh0.gbemu.cpu.CPU;
 import com.mrh0.gbemu.events.EmulationEventManager;
@@ -69,10 +72,12 @@ public class Emulator implements Runnable {
 		try {
 			return setROM(readROM(rom));
 		} catch (IOException e) {
-			System.err.println("Failed to load ROM file.");
 			e.printStackTrace();
-			return false;
+		} catch (URISyntaxException e) {
+			e.printStackTrace();
 		}
+		System.err.println("Failed to load ROM file.");
+		return false;
 	}
 	
 	public Globals getGlobals() {
@@ -157,13 +162,21 @@ public class Emulator implements Runnable {
 		if (!lastTitle.equals(lastTitle = getWindowTitle(precent)))
 			window.setTitle(lastTitle);
 	}
+	
+	private byte[] readBootcode(String name) throws IOException, URISyntaxException {
+		Path p = Paths.get(this.getClass().getClassLoader().getResource(name+".bin").toURI());
+		System.out.println(p);
+		return IO.readBin(p.toAbsolutePath().toFile());
+	}
 
-	private byte[] readROM(File file) throws IOException {
+	private byte[] readROM(File file) throws IOException, URISyntaxException {
 		if(file == null)
 			return null;
-		byte[] rom = IO.readROM(file);
+		byte[] rom = IO.readBin(file);
 		globals.FirstROMPage = new byte[256];
-		byte[] bootcode = parseBootcode();
+		
+		//byte[] bootcode = parseBootcode();
+		byte[] bootcode = readBootcode("dmg_boot");
 		
 		globals.CGBMode = rom[0x0143] == 0xc0;
 		globals.universalMode = rom[0x0143] == 0x80;
