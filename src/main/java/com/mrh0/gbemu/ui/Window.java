@@ -45,7 +45,7 @@ public class Window extends JFrame implements WindowListener {
 		c.weightx = 0.5d;
 		c.weighty = 0.5d;
 		c.anchor = GridBagConstraints.CENTER;
-		this.add(emulator.getLCD(), c);
+		this.add(emulator.getRenderer(), c);
 		this.pack();
 	}
 	
@@ -53,9 +53,8 @@ public class Window extends JFrame implements WindowListener {
 		JFileChooser fc = new JFileChooser();
 		fc.setAcceptAllFileFilterUsed(false);
 		fc.addChoosableFileFilter(new FileNameExtensionFilter("GameBoy .gb", "gb", "gbc"));
-		if (fc.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) {
+		if (fc.showOpenDialog(this) != JFileChooser.APPROVE_OPTION)
 			return null;
-		}
 		return fc.getSelectedFile();
 	}
 

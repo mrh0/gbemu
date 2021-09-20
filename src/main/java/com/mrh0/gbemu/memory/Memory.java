@@ -30,33 +30,6 @@ public class Memory {
 		return rom;
 	}
 
-	public void resetSoundRegisters() {
-		/*write(0xFF10, (byte) 0x80); // NR10
-		write(0xFF11, (byte) 0xBF); // NR11
-		write(0xFF12, (byte) 0xF3); // NR12
-		write(0xFF13, (byte) 0x00); // NR13
-		write(0xFF14, (byte) 0xBF); // NR14
-		write(0xFF15, (byte) 0xFF); // NA
-		write(0xFF16, (byte) 0x3F); // NR21
-		write(0xFF17, (byte) 0x00); // NR22
-		write(0xFF18, (byte) 0x00); // NR23
-		write(0xFF19, (byte) 0xBF); // NR24
-		write(0xFF1A, (byte) 0x7F); // NR30
-		write(0xFF1B, (byte) 0xFF); // NR31
-		write(0xFF1C, (byte) 0x9F); // NR32
-		write(0xFF1D, (byte) 0x00);
-		write(0xFF1E, (byte) 0xBF); // NR33
-		write(0xFF1F, (byte) 0xFF); // NA
-		write(0xFF20, (byte) 0xFF); // NR41
-		write(0xFF21, (byte) 0x00); // NR42
-		write(0xFF22, (byte) 0x00); // NR43
-		write(0xFF23, (byte) 0xBF); // NR30
-		write(0xFF24, (byte) 0x77); // NR50
-		// write(0xFF25, (byte) 0xF3)); // NR51
-		write(0xFF26, (byte) 0xF1); // NR52*/
-
-	}
-
 	public byte read(int addr) {
 		addr &= 0xFFFF;
 
@@ -70,33 +43,26 @@ public class Memory {
 			return (byte) (cram[addr + emulator.getGlobals().RAMbankoffset] & 0xFF);
 		
 		// Sound
-		if (addr >= 0xFF10 && addr <= 0xFF30) {
-			byte r = (byte) (emulator.getSound().read(addr)&0xFF);
-			//System.out.println("Reading: " + Integer.toHexString(addr) + ":" + Integer.toHexString(r&0xFF));
-			return r;
-		}
-		if(addr >= 0xFF30 && addr <= 0xFF3F) {
-			byte r = (byte) (emulator.getSound().readWaveRAM(addr)&0xFF);
-			//System.out.println("ReadingWave: " + Integer.toHexString(addr) + ":" + Integer.toHexString(r&0xFF));
-			return r;
-		}
+		if (addr >= 0xFF10 && addr <= 0xFF30)
+			return (byte) (emulator.getSound().read(addr)&0xFF);
+		
+		if(addr >= 0xFF30 && addr <= 0xFF3F)
+			return (byte) (emulator.getSound().readWaveRAM(addr)&0xFF);
 
 		// Joypad
 		if (addr == MemMap.IO.start) {
 			if ((ram[MemMap.IO.start] & 0x20) > 0)
 				return emulator.getGlobals().dpad;
-			else if ((ram[MemMap.IO.start] & 0x10) > 0) {
+			else if ((ram[MemMap.IO.start] & 0x10) > 0)
 				return emulator.getGlobals().buttons;
-			} else
-				return (byte) 0xFF;
+			return (byte) 0xFF;
 		}
 		
 		
 		//WRAM
 		if(emulator.getGlobals().CGBMode) {
-			if(addr >= 0xC000 && addr <= 0xCFFF) {
+			if(addr >= 0xC000 && addr <= 0xCFFF)
 				return (byte) (wram[addr-0xC000] & 0xFF);
-			}
 			if(addr >= 0xD000 && addr <= 0xDFFF) {
 				int bank = ram[0xFF70]&0xF9;
 				return (byte) (wram[addr-0xD000+(bank*0x1000)] & 0xFF);
@@ -125,7 +91,7 @@ public class Memory {
 			return;
 		}
 
-		// DIV register: reset
+		// Reset DIV register
 		if (addr == 0xFF04) {
 			ram[0xFF04] = 0;
 			return;
@@ -141,22 +107,29 @@ public class Memory {
 		}
 
 		if (addr >= 0xFF10 && addr < 0xFF30) {
-			//System.out.println("Writing: " + Integer.toHexString(addr) + ":" + Integer.toHexString(((int)data)&0xFF));
 			emulator.getSound().write(addr, ((int)data)&0xFF);
 		}
 		
 		if(addr >= 0xFF30 && addr <= 0xFF3F) {
-			//System.out.println("WritingWave: " + Integer.toHexString(addr) + ":" + Integer.toHexString(((int)data)&0xFF));
 			emulator.getSound().writeWaveRAM(addr, ((int)data)&0xFF);
 		}
+		
+		//WRAM
+		if(emulator.getGlobals().CGBMode) {
+			if(addr >= 0xC000 && addr <= 0xCFFF)
+				wram[addr-0xC000] = (byte) (data&0xFF);
+			if(addr >= 0xD000 && addr <= 0xDFFF) {
+				int bank = ram[0xFF70]&0xF9;
+				wram[addr-0xD000+(bank*0x1000)] = (byte) (data&0xFF);
+			}
+		}
 
-		// LCD control
+		// DMG LCD control
 		if (addr == 0xFF40) {
 			int cc = data & 0x80;
 			if (emulator.getGlobals().LCD_enabled != cc > 0) {
 				emulator.getGlobals().LCD_enabled = cc > 0;
-				if (!emulator.getGlobals().LCD_enabled) { // Disabling the display sets it to mode 1
-					// this should also probably set all pixels to white
+				if (!emulator.getGlobals().LCD_enabled) {
 					emulator.getGlobals().LCD_scan = 0;
 					ram[0xFF41] = (byte) ((ram[0xFF41] & 0xFC) + 1);
 				}
@@ -164,20 +137,17 @@ public class Memory {
 		}
 
 		if (addr == 0xFF41) {
-			// don't overwrite the lowest two bits (mode)
 			ram[0xFF41] &= 0x3;
 			data &= 0xFC;
-			ram[0xFF41] |= 0x80 | data; // BGB has highest bit always set
+			ram[0xFF41] |= 0x80 | data;
 			return;
 		}
 
-		// LY - write causes reset
 		if (addr == 0xFF44) {
 			ram[0xFF44] = 0;
 			return;
 		}
 
-		// FF46 - DMA - DMA Transfer and Start Address (W)
 		if (addr == 0xFF46) {
 			int st = (data & 0xFF) << 8;
 			for (int i = 0; i <= 0x9F; i++)
@@ -185,12 +155,17 @@ public class Memory {
 			return;
 		}
 
-		// disable bootrom
+		// Boot-ROM
 		if (addr == 0xFF50) {
 			System.out.println("Disabled Boot-ROM");
 			for (int i = 0; i < 256; i++)
 				rom[i] = (byte) (emulator.getGlobals().FirstROMPage[i] & 0xFF);
 			return;
+		}
+		
+		//CGB LCD control
+		if(addr == 0xFF55) {
+			
 		}
 
 		ram[addr] = data;
@@ -211,21 +186,18 @@ public class Memory {
 	}
 
 	private void doMBC(int addr, byte data) {
-
+		// Cartridge Type = ROM[0x147]
 		switch (rom[0x147] & 0xFF) {
 
-		// Cartridge Type = ROM[0x147]
-
 		case 0: // ROM ONLY
-			// do any type 0 carts have switchable ram?
 			break;
 
 		case 0x01: // MBC1
 		case 0x02: // MBC1+RAM
 		case 0x03: // MBC1+RAM+BATTERY
-			if (addr <= 0x1FFF) {
+			if (addr <= 0x1FFF)
 				emulator.getGlobals().RAMenabled = ((data & 0x0F) == 0xA);
-			} else if (addr <= 0x3FFF) {
+			else if (addr <= 0x3FFF) {
 				data &= 0x1F;
 				if (data == 0)
 					data = 1; // MBC1 translates bank 0 to bank 1 (apparently regardless of upper bits)
@@ -337,9 +309,7 @@ public class Memory {
 
 		default:
 			System.err.println("NOT IMPLEMENTED MEM: " + Integer.toHexString(addr));
-			System.exit(0);
-			break;
-
+			throw new IllegalArgumentException();
 		}
 	}
 }

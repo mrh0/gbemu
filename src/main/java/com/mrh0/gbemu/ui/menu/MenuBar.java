@@ -11,6 +11,7 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
+import javax.swing.event.ChangeListener;
 
 import com.mrh0.gbemu.Emulator;
 import com.mrh0.gbemu.events.EmulationEventType;
@@ -85,7 +86,10 @@ public class MenuBar extends JMenuBar {
 		this.add(screen);
 		
 		sound = new JMenu("Sound");
-		sound.add(new JCheckBoxMenuItem("Mute"));
+		sound.add(action(new JCheckBoxMenuItem("Mute"), (e) -> emulator.toggleMuteAudio()));
+		JSliderMenuItem volume = new JSliderMenuItem(0, 100, 50);
+		volume.setTicks(50, 0).change((e) -> emulator.setMasterVolume(volume.getValue()));
+		sound.add(child(new JMenu("Volume"), volume));
 		sound.add(child(new JMenu("Channels"),
 			action(select(new JCheckBoxMenuItem("Channel 1")), (e) -> emulator.getGlobals().uiChannelEnable[0] = !emulator.getGlobals().uiChannelEnable[0]),
 			action(select(new JCheckBoxMenuItem("Channel 2")), (e) -> emulator.getGlobals().uiChannelEnable[1] = !emulator.getGlobals().uiChannelEnable[1]),

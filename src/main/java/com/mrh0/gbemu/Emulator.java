@@ -12,16 +12,18 @@ import com.mrh0.gbemu.events.EmulationEventType;
 import com.mrh0.gbemu.events.IEmulationEvent;
 import com.mrh0.gbemu.io.IO;
 import com.mrh0.gbemu.io.Input;
+import com.mrh0.gbemu.lcd.LCD;
+import com.mrh0.gbemu.lcd.color.CLCD;
 import com.mrh0.gbemu.memory.Memory;
 import com.mrh0.gbemu.sound.SoundManager;
 import com.mrh0.gbemu.ui.Window;
-import com.mrh0.gbemu.ui.lcd.LCD;
+import com.mrh0.gbemu.ui.game.Renderer;
 
 public class Emulator implements Runnable {
 	private Globals globals;
 	private CPU cpu;
 	private Memory memory;
-	private LCD lcd;
+	private Renderer renderer;
 	private Window window;
 	private Input input;
 	private SoundManager sound;
@@ -32,7 +34,7 @@ public class Emulator implements Runnable {
 		eventManager = new EmulationEventManager();
 		
 		globals = new Globals();
-		lcd = new LCD(globals);
+		renderer = new Renderer(this, null);
 		
 		// Setup Memory:
 		memory = new Memory(this, 0x10000);
@@ -43,9 +45,8 @@ public class Emulator implements Runnable {
 		memory.raw()[0xFFF7] = (byte) 0xFF;
 		
 		sound = new SoundManager(this);
-		memory.resetSoundRegisters();
 		
-		cpu = new CPU(memory, lcd, globals);
+		cpu = new CPU(this);
 		
 		input = new Input(this);
 		
@@ -88,8 +89,8 @@ public class Emulator implements Runnable {
 		return cpu;
 	}
 	
-	public LCD getLCD() {
-		return lcd;
+	public Renderer getRenderer() {
+		return renderer;
 	}
 	
 	public Window getWindow() {
@@ -165,7 +166,6 @@ public class Emulator implements Runnable {
 	
 	private byte[] readBootcode(String name) throws IOException, URISyntaxException {
 		Path p = Paths.get(this.getClass().getClassLoader().getResource(name+".bin").toURI());
-		System.out.println(p);
 		return IO.readBin(p.toAbsolutePath().toFile());
 	}
 
@@ -176,15 +176,27 @@ public class Emulator implements Runnable {
 		globals.FirstROMPage = new byte[256];
 		
 		//byte[] bootcode = parseBootcode();
-		byte[] bootcode = readBootcode("dmg_boot");
+		globals.CGBMode = (rom[0x0143]&0xFF) == 0xC0 || (rom[0x0143]&0xFF) == 0x80;
+		globals.universalMode = (rom[0x0143]&0xFF) == 0x80;
+		String bootname = globals.CGBMode?"cgb_boot":"dmg_boot";
 		
-		globals.CGBMode = rom[0x0143] == 0xc0;
-		globals.universalMode = rom[0x0143] == 0x80;
+		byte[] bootcode;
+		try {
+			bootcode = readBootcode(bootname);
+		}
+		catch(Exception e) {
+			System.err.println("Failed to load src/main/resources/"+bootname+".bin");
+			throw e;
+		}
 		
 		for (int i = 0; i < 256; i++) {
 			globals.FirstROMPage[i] = rom[i];
 			rom[i] = bootcode[i];
 		}
+		
+		if(globals.CGBMode)
+			memory.setCGB();
+		renderer.setLCD(globals.CGBMode?new CLCD():new LCD());
 		
 		String title = getTitle(rom);
 		String mode = (globals.CGBMode?"CGB":(globals.universalMode?"Universal":"DMG"));
@@ -203,13 +215,13 @@ public class Emulator implements Runnable {
 	        return t.toString();
 	    }
 
-	private byte[] parseBootcode() {
+	/*private byte[] parseBootcode() {
 		String[] splt = globals.bootcodeDMG.split(" ");
 		byte[] bytes = new byte[splt.length];
 		for (int i = 0; i < splt.length; i++)
 			bytes[i] = (byte) Integer.parseInt(splt[i], 16);
 		return bytes;
-	}
+	}*/
 	
 	public void togglePause() {
 		globals.cpuEnabled = !globals.cpuEnabled;
@@ -221,7 +233,7 @@ public class Emulator implements Runnable {
 	}
 	
 	public void setLCDScale(int scale) {
-		lcd.setScale(scale);
+		renderer.setScale(scale);
 		if(!window.isFullscreen())
 			window.pack();
 		else
@@ -230,7 +242,15 @@ public class Emulator implements Runnable {
 	}
 	
 	public void setLCDColorMode(int mode) {
-		lcd.setColorMode(mode);
+		renderer.setColorMode(mode);
 		triggerEvent(EmulationEventType.LCDColorModeSet);
+	}
+	
+	public void toggleMuteAudio() {
+		globals.uiMuteAll = !globals.uiMuteAll;
+	}
+	
+	public void setMasterVolume(int vol) {
+		globals.uiVolume = vol;
 	}
 }

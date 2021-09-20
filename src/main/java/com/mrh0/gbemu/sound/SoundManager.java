@@ -19,8 +19,8 @@ public class SoundManager {
 
 	public static final int SAMPLE_RATE = 22050;
 	public static final int BUFFER_SIZE = 1024;
-	private static final AudioFormat FORMAT = new AudioFormat(AudioFormat.Encoding.PCM_SIGNED, SAMPLE_RATE, 8, 2, 2, SAMPLE_RATE, false);
-//new AudioFormat(SAMPLE_RATE, 8, 2, true, false);
+	private static final AudioFormat FORMAT = new AudioFormat(AudioFormat.Encoding.PCM_UNSIGNED, SAMPLE_RATE, 8, 2, 2, SAMPLE_RATE, false);
+	
 	//Sound
 	private SourceDataLine line = null;
 	private byte[] buffer;
@@ -67,9 +67,8 @@ public class SoundManager {
 	}
 
 	public void startOutput() {
-		if (line != null) {
+		if (line != null)
 			return;
-		}
 
 		try {
 			line = AudioSystem.getSourceDataLine(FORMAT);
@@ -102,11 +101,9 @@ public class SoundManager {
 			return;
 		}
 		
-		if (!(left >= 0 && left < 256 && right >= 0 && right < 256)) {
-			System.err.println("Sound argument error");
-			return;
-		}
-
+		//if (!(left >= 0 && left < 256 && right >= 0 && right < 256))
+		//	throw new IllegalArgumentException();
+		
 		buffer[index++] = (byte) (left);
 		buffer[index++] = (byte) (right);
 		
@@ -122,17 +119,17 @@ public class SoundManager {
 	private void start() {
 		for (int i = 0xff10; i <= 0xff25; i++) {
 			int v = 0;
-			// lengths should be preserved
-			if (i == 0xff11 || i == 0xff16 || i == 0xff20) { // channel 1, 2, 4 lengths
+
+			if (i == 0xff11 || i == 0xff16 || i == 0xff20)
 				v = getUnmasked(i) & 0b00111111;
-			} else if (i == 0xff1b) { // channel 3 length
+			else if (i == 0xff1b)
 				v = getUnmasked(i);
-			}
+			
 			write(i, v);
 		}
-		for (AbstractSoundChannel s : allChannels) {
+		for (AbstractSoundChannel s : allChannels)
 			s.start();
-		}
+		
 		startOutput();
 	}
 
@@ -146,9 +143,9 @@ public class SoundManager {
 	
 	private boolean onceEnabled = false;
 	public void tickOutput() {
-		if (!masterEnable && !onceEnabled) {
+		if (!masterEnable && !onceEnabled)
 			return;
-		}
+		
 		onceEnabled = true;
 
 		for (int i = 0; i < 4; i++) {
@@ -160,14 +157,13 @@ public class SoundManager {
 		int left = 0;
 		int right = 0;
 		for (int i = 0; i < 4; i++) {
-			if (!emulator.getGlobals().uiChannelEnable[i])
+			if (!emulator.getGlobals().uiChannelEnable[i] || emulator.getGlobals().uiMuteAll)
 				continue;
-			if ((selection & (1 << i + 4)) != 0) {
+			if ((selection & (1 << i + 4)) != 0)
 				left += channels[i];
-			}
-			if ((selection & (1 << i)) != 0) {
+
+			if ((selection & (1 << i)) != 0)
 				right += channels[i];
-			}
 		}
 		left /= 4;
 		right /= 4;
@@ -175,6 +171,10 @@ public class SoundManager {
 		int volumes = read(0xFF24);
 		left *= ((volumes >> 4) & 0b111);
 		right *= (volumes & 0b111);
+		
+		int masterVolume = (int)(((float)emulator.getGlobals().uiVolume)/100f * 4f);
+		left *= masterVolume & 0xFF;
+		right *= masterVolume & 0xFF;
 
 		output((byte) left, (byte) right);
 	}

@@ -2,39 +2,26 @@ package com.mrh0.gbemu.cpu;
 
 import java.io.FileWriter;
 
+import com.mrh0.gbemu.Emulator;
 import com.mrh0.gbemu.Globals;
 import com.mrh0.gbemu.io.IO;
 import com.mrh0.gbemu.memory.MemMap;
 import com.mrh0.gbemu.memory.Memory;
-import com.mrh0.gbemu.ui.lcd.LCD;
+import com.mrh0.gbemu.ui.game.Renderer;
 
 public class CPU {
 	private byte[] reg;
 	private Memory mem;
-	private LCD lcd;
 	private Globals globals;
+	private Renderer renderer;
+	private Emulator emulator;
 
-	int[][][] pixelDecoder;
-
-	public CPU(Memory mem, LCD lcd, Globals globals) {
+	public CPU(Emulator emulator) {
 		reg = new byte[8];
-		this.mem = mem;
-		this.lcd = lcd;
-		this.globals = globals;
-
-		pixelDecoder = new int[256][256][8];
-		for (int d1 = 0; d1 < 256; d1++) {
-			for (int d2 = 0; d2 < 256; d2++) {
-				pixelDecoder[d1][d2][0] = (((d1 & 128) + 2 * (d2 & 128)) >> 7);
-				pixelDecoder[d1][d2][1] = ((d1 & 64) + 2 * (d2 & 64)) >> 6;
-				pixelDecoder[d1][d2][2] = ((d1 & 32) + 2 * (d2 & 32)) >> 5;
-				pixelDecoder[d1][d2][3] = ((d1 & 16) + 2 * (d2 & 16)) >> 4;
-				pixelDecoder[d1][d2][4] = ((d1 & 8) + 2 * (d2 & 8)) >> 3;
-				pixelDecoder[d1][d2][5] = ((d1 & 4) + 2 * (d2 & 4)) >> 2;
-				pixelDecoder[d1][d2][6] = ((d1 & 2) + 2 * (d2 & 2)) >> 1;
-				pixelDecoder[d1][d2][7] = ((d1 & 1) + 2 * (d2 & 1));
-			}
-		}
+		this.emulator = emulator;
+		this.mem = emulator.getMemory();
+		this.renderer = emulator.getRenderer();
+		this.globals = emulator.getGlobals();
 	}
 
 	private boolean flagZ = false;
@@ -165,20 +152,6 @@ public class CPU {
 		sp = 0;
 	}
 	
-	
-
-	private int[] grabTile(int n, int offset, boolean tileSigned) {
-		int tileptr;
-		if (tileSigned && n > 127) {
-			tileptr = offset + (n - 256) * 16;
-		} else {
-			tileptr = offset + n * 16;
-		}
-		int d1 = mem.raw()[tileptr]&0xFF;
-		int d2 = mem.raw()[tileptr + 1]&0xFF;
-		return pixelDecoder[d1][d2];
-	}
-
 	public int advance() {
 		int cycles = 4;
 
@@ -203,248 +176,11 @@ public class CPU {
 			}
 		}
 
-		if (globals.LCD_enabled) {
-			globals.LCD_scan += cycles;
-
-			int mode = 0;
-			boolean coincidence = false;
-			boolean draw = false;
-			if (globals.LCD_scan <= 80)
-				mode = 2;
-			else if (globals.LCD_scan <= 252)
-				mode = 3;
-			else if (globals.LCD_scan < 456) {
-				draw = (globals.LCD_lastmode != 0);
-				mode = 0;
-			} else {
-				mode = 2;
-				globals.LCD_scan -= 456;
-				mem.raw()[0xFF44]++;
-				if ((mem.raw()[0xFF44]&0xFF) > 153)
-					mem.raw()[0xFF44] = 0;
-				coincidence = ((mem.raw()[0xFF44]&0xFF) == (mem.raw()[0xFF45]&0xFF));
-			}
-
-			if ((mem.raw()[0xFF44]&0xFF) >= 144)
-				mode = 1; // vblank
-			else if (draw) {
-				// Draw scanline
-				int LY = mem.raw()[0xFF44]&0xFF;
-				int dpy = LY * 160;
-
-				boolean drawWindow = bool((mem.raw()[0xFF40]&0xFF) & ((1 << 5)&0xFF)) && LY >= (mem.raw()[0xFF4A]&0xFF);
-				int bgStopX = drawWindow ? (mem.raw()[0xFF4B]&0xFF) - 7 : 160;
-
-				// FF40 - LCDC - LCD Control (R/W)
-				//
-				// Bit 7 - LCD Display Enable (0=Off, 1=On)
-				// Bit 6 - Window Tile Map Display Select (0=9800-9BFF, 1=9C00-9FFF)
-				// Bit 5 - Window Display Enable (0=Off, 1=On)
-				// Bit 4 - BG & Window Tile Data Select (0=8800-97FF, 1=8000-8FFF)
-				// Bit 3 - BG Tile Map Display Select (0=9800-9BFF, 1=9C00-9FFF)
-				// Bit 2 - OBJ (Sprite) Size (0=8x8, 1=8x16)
-				// Bit 1 - OBJ (Sprite) Display Enable (0=Off, 1=On)
-				// Bit 0 - BG Display (for CGB see below) (0=Off, 1=On)
-
-				int baseTileOffset;
-				boolean tileSigned;
-				// Tile Data Select
-				if (bool((mem.raw()[0xFF40]&0xFF) & ((1 << 4)&0xFF))) {
-					baseTileOffset = 0x8000;
-					tileSigned = false;
-				} else {
-					baseTileOffset = 0x9000;
-					tileSigned = true;
-				}
-				int[] bgpalette = { ((mem.raw()[0xFF47])&0xFF) & 3, ((mem.raw()[0xFF47]&0xFF) >> 2) & 3, ((mem.raw()[0xFF47]&0xFF) >> 4) & 3,
-						((mem.raw()[0xFF47]&0xFF) >> 6) & 3 };
-
-				if (bool((mem.raw()[0xFF40]&0xFF) & 1)) { // BG enabled
-					// BG Tile map display select
-					int bgTileMapAddr = bool(mem.raw()[0xFF40] & ((1 << 3)&0xFF)) ? 0x9C00 : 0x9800;
-
-					// scy FF42
-					// scx FF43
-					// scanline number FF44
-					// pixel row = FF44 + FF42
-					// tile row = pixel row >> 3
-					// 32 bytes per row
-					// pixel column = FF43
-					// tile column = pixel column >> 3
-
-					int x = (mem.raw()[0xFF43]&0xFF) >> 3;
-					int xoff = (mem.raw()[0xFF43]&0xFF) & 7;
-					int y = ((LY&0xFF) + (mem.raw()[0xFF42]&0xFF)) & 0xFF;
-
-					// Y doesn't change throughout a scanline
-					bgTileMapAddr += (~~(y / 8)) * 32;
-					int tileOffset = baseTileOffset + (y & 7) * 2;
-
-					int[] pix = grabTile(mem.raw()[bgTileMapAddr + x]&0xFF, tileOffset, tileSigned);
-
-					for (int i = 0; i < bgStopX; i++) {
-						lcd.raw()[dpy + i] = (byte) bgpalette[pix[xoff++]];
-
-						if (xoff == 8) {
-							x = (x + 1) & 0x1F; // wrap horizontally in tile map
-
-							pix = grabTile(mem.raw()[bgTileMapAddr + x]&0xFF, tileOffset, tileSigned);
-							xoff = 0;
-						}
-
-					}
-				}
-
-				// FF4A - WY
-				// FF4B - WX
-
-				if (drawWindow) { // Window display enable
-					// Window Tile map display select
-					int wdTileMapAddr = bool((mem.raw()[0xFF40]&0xFF) & ((1 << 6)&0xFF)) ? 0x9C00 : 0x9800;
-
-					int xoff = 0;
-					int y = LY - mem.raw()[0xFF4A]&0xFF;
-
-					wdTileMapAddr += (~~(y / 8)) * 32;
-					int tileOffset = baseTileOffset + (y & 7) * 2;
-
-					int[] pix = grabTile(mem.raw()[wdTileMapAddr]&0xFF, tileOffset, tileSigned);
-
-					for (int i = Math.max(0, bgStopX); i < 160; i++) {
-						lcd.raw()[dpy + i] = (byte) bgpalette[pix[xoff++]];
-						if (xoff == 8) {
-							pix = grabTile(mem.raw()[++wdTileMapAddr]&0xFF, tileOffset, tileSigned);
-							xoff = 0;
-						}
-					}
-
-				}
-
-				if (bool((mem.raw()[0xFF40]&0xFF) & 2)) { // Sprite display enabled
-
-					// Render sprites
-					int height, tileNumMask;
-					if (bool((mem.raw()[0xFF40]&0xFF) & ((1 << 2)&0xFF))) {
-						height = 16;
-						tileNumMask = 0xFE; // in 8x16 mode, lowest bit of tile number is ignored
-					} else {
-						height = 8;
-						tileNumMask = 0xFF;
-					}
-
-					int[] OBP0 = { 0, ((mem.raw()[0xFF48]&0xFF) >> 2) & 3, ((mem.raw()[0xFF48]&0xFF) >> 4) & 3,
-							((mem.raw()[0xFF48]&0xFF) >> 6) & 3 };
-					int[] OBP1 = { 0, ((mem.raw()[0xFF49]&0xFF) >> 2) & 3, ((mem.raw()[0xFF49]&0xFF) >> 4) & 3,
-							((mem.raw()[0xFF49]&0xFF) >> 6) & 3 };
-					int background = bgpalette[0];
-
-					// OAM 4 bytes per sprite, 40 sprites
-					for (int i = 0xFE9C; i >= 0xFE00; i -= 4) {
-						int ypos = (mem.raw()[i]&0xFF) - 16 + height;
-						if (LY >= ypos - height && LY < ypos) {
-
-							int tileNum = 0x8000 + ((mem.raw()[i + 2]&0xFF) & tileNumMask) * 16;
-							int xpos = mem.raw()[i + 1]&0xFF;
-							int att = mem.raw()[i + 3]&0xFF;
-
-							// Bit7 OBJ-to-BG Priority (0=OBJ Above BG, 1=OBJ Behind BG color 1-3)
-							// (Used for both BG and Window. BG color 0 is always behind OBJ)
-							// Bit6 Y flip (0=Normal, 1=Vertically mirrored)
-							// Bit5 X flip (0=Normal, 1=Horizontally mirrored)
-							// Bit4 Palette number **Non CGB Mode Only** (0=OBP0, 1=OBP1)
-
-							int[] palette = bool(att & ((1 << 4)&0xFF)) ? OBP1 : OBP0;
-							boolean behind = bool(att & ((1 << 7)&0xFF));
-
-							if (bool(att & ((1 << 6)&0xFF))) { // Y flip
-								tileNum += (ypos - LY - 1) * 2;
-							} else {
-								tileNum += (LY - ypos + height) * 2;
-							}
-							int d1 = mem.raw()[tileNum]&0xFF;
-							int d2 = mem.raw()[tileNum + 1]&0xFF;
-							int[] row = pixelDecoder[d1][d2];
-
-							if (bool(att & ((1 << 5)&0xFF))) {
-								if (behind) {
-									for (int j = 0; j < Math.min(xpos, 8); j++) {
-										if ((lcd.raw()[dpy + xpos - 1 - j]&0xFF) == background && bool(row[j]))
-											lcd.raw()[dpy + xpos - 1 - j] = (byte) palette[row[j]];
-									}
-								} else {
-									for (int j = 0; j < Math.min(xpos, 8); j++) {
-										if (bool(row[j]))
-											lcd.raw()[dpy + xpos - (j + 1)] = (byte) palette[row[j]];
-									}
-								}
-							} else {
-								if (behind) {
-									for (int j = Math.max(8 - xpos, 0); j < 8; j++) {
-										if ((lcd.raw()[dpy + xpos - 8 + j]&0xFF) == background && bool(row[j]))
-											lcd.raw()[dpy + xpos - 8 + j] = (byte) palette[row[j]];
-									}
-								} else {
-									for (int j = Math.max(8 - xpos, 0); j < 8; j++) {
-										if (bool(row[j]))
-											lcd.raw()[dpy + xpos - 8 + j] = (byte) palette[row[j]];
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-
-			// 0xFF41 - LCDC Status
-			// Bit 6 - LYC=LY Coincidence Interrupt (1=Enable) (Read/Write)
-			// Bit 5 - Mode 2 OAM Interrupt (1=Enable) (Read/Write)
-			// Bit 4 - Mode 1 V-Blank Interrupt (1=Enable) (Read/Write)
-			// Bit 3 - Mode 0 H-Blank Interrupt (1=Enable) (Read/Write)
-			// Bit 2 - Coincidence Flag (0:LYC<>LY, 1:LYC=LY) (Read Only)
-
-			if (coincidence) {
-				if (bool((mem.raw()[0xFF41]&0xFF) & 0x40)) { // coincidence interrupt enabled
-					mem.raw()[0xFF0F] |= 0x02; // LCD STAT Interrupt flag
-					mem.raw()[0xFF41] |= 0x04; // coincidence flag
-				}
-			} else
-				mem.raw()[0xFF41] &= 0xFB;// ~(1<<2)
-			if (globals.LCD_lastmode != mode) { // Mode change
-				//IO.log(logw, "mode: " + mode + "\n");
-				if (mode == 0) {
-					if (bool((mem.raw()[0xFF41]&0xFF) & 0x08))
-						mem.raw()[0xFF0F] |= 0x02;
-				} else if (mode == 1) {
-
-					// LCD STAT interrupt on v-blank
-					if (bool((mem.raw()[0xFF41]&0xFF) & 0x10))
-						mem.raw()[0xFF0F] |= 0x02;
-
-					// Main V-Blank interrupt
-					if (bool((mem.raw()[0xFFFF]&0xFF) & 0x01)) {
-						mem.raw()[0xFF0F] |= 0x01;
-						//System.out.println("v-blank interrupt");
-					}
-
-					lcd.update(pc);
-
-				} else if (mode == 2) {
-					if (bool((mem.raw()[0xFF41]&0xFF) & 0x20))
-						mem.raw()[0xFF0F] |= 0x02;
-				}
-
-				mem.raw()[0xFF41] &= 0xF8;
-				int k = mem.raw()[0xFF41]&0xFF;
-				mem.raw()[0xFF41] = (byte) ((k + mode)&0xFF);
-				globals.LCD_lastmode = mode;
-			}
-		}
+		//LCD
+		cycles = renderer.cycle(emulator, renderer, cycles);
 
 		if (ime) {
-			
 			int i = mem.raw()[0xFF0F] & mem.raw()[0xFFFF];
-			//System.out.println(i);
-			//IO.sleep(1000);
 			
 			if (bool(i & 0x01)) {
 				mem.raw()[0xFF0F] &= 0xFE;
