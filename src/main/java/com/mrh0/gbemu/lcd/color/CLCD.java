@@ -8,13 +8,21 @@ import com.mrh0.gbemu.ui.game.Renderer;
 
 public class CLCD implements ILCD{
 
+	private final Palette bg;
+    private final Palette oam;
+	
+	public CLCD() {
+		this.bg = new Palette(0xff68);
+        this.oam = new Palette(0xff6a);
+	}
+	
 	@Override
 	public void render(Graphics2D g, int scale, int mode) {
 	}
 
 	@Override
 	public int cycle(Emulator emulator, Renderer renderer, int cycles) {
-		return 0;
+		return cycles;
 	}
 
 	public static int getColor(int c) {

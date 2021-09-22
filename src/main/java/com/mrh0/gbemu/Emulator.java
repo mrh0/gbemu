@@ -6,6 +6,8 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+import javax.swing.JOptionPane;
+
 import com.mrh0.gbemu.cpu.CPU;
 import com.mrh0.gbemu.events.EmulationEventManager;
 import com.mrh0.gbemu.events.EmulationEventType;
@@ -52,6 +54,14 @@ public class Emulator implements Runnable {
 		
 		window = createWindow();
 		window.init(this);
+		
+		Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+			@Override
+			public void run() {
+				memory.RAMSave();
+				System.out.println("Quit");
+			}
+		}));
 	}
 	
 	public void triggerEvent(EmulationEventType type) {
@@ -117,6 +127,7 @@ public class Emulator implements Runnable {
 	
 	@Override
 	public void run() {
+		globals.gameHasLoaded = true;
 		cpu.reset();
 		int relativePercent = 1;
 		long sec = System.nanoTime();
@@ -173,11 +184,25 @@ public class Emulator implements Runnable {
 		if(file == null)
 			return null;
 		byte[] rom = IO.readBin(file);
-		globals.FirstROMPage = new byte[256];
 		
 		//byte[] bootcode = parseBootcode();
 		globals.CGBMode = (rom[0x0143]&0xFF) == 0xC0 || (rom[0x0143]&0xFF) == 0x80;
 		globals.universalMode = (rom[0x0143]&0xFF) == 0x80;
+		
+		if(globals.universalMode) {
+			String[] options = {"CGB Color", "DMG Monochrome"};
+			int input = JOptionPane.showOptionDialog(getRenderer(),
+				"This cartridge ROM is Universal, what mode would you like to launch it in?",
+				"Select Launch Mode",
+				JOptionPane.YES_NO_OPTION,
+				JOptionPane.QUESTION_MESSAGE,
+				null,
+				options,
+				options[0]);
+			if(input == JOptionPane.NO_OPTION)
+				globals.CGBMode = false;
+		}
+		
 		String bootname = globals.CGBMode?"cgb_boot":"dmg_boot";
 		
 		byte[] bootcode;
@@ -189,18 +214,24 @@ public class Emulator implements Runnable {
 			throw e;
 		}
 		
-		for (int i = 0; i < 256; i++) {
+		/*globals.FirstROMPage = new byte[getBootromLength()];
+		for (int i = 0; i < getBootromLength(); i++) {
 			globals.FirstROMPage[i] = rom[i];
 			rom[i] = bootcode[i];
-		}
+		}*/
+		globals.bootROM = bootcode;
 		
 		if(globals.CGBMode)
 			memory.setCGB();
 		renderer.setLCD(globals.CGBMode?new CLCD():new LCD());
 		
 		String title = getTitle(rom);
-		String mode = (globals.CGBMode?"CGB":(globals.universalMode?"Universal":"DMG"));
+		String mode = (globals.universalMode?"Universal":(globals.CGBMode?"CGB":"DMG"));
+		
+		globals.currentROMFile = file;
+		globals.currentROMName = title;
 		System.out.println("Loaded "+mode+" ROM '"+title+"' (" + rom.length + "bytes)." );
+		memory.RAMLoad();
 		return rom;
 	}
 	
@@ -252,5 +283,9 @@ public class Emulator implements Runnable {
 	
 	public void setMasterVolume(int vol) {
 		globals.uiVolume = vol;
+	}
+	
+	public boolean isCGB() {
+		return globals.CGBMode;
 	}
 }

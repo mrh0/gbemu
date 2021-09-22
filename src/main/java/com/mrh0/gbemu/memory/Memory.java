@@ -1,6 +1,7 @@
 package com.mrh0.gbemu.memory;
 
 import com.mrh0.gbemu.Emulator;
+import com.mrh0.gbemu.io.CartridgeSaves;
 
 public class Memory {
 
@@ -9,6 +10,8 @@ public class Memory {
 	private byte[] rom;
 	
 	private byte[] wram;
+	
+	private byte[] vram1;
 
 	private Emulator emulator;
 
@@ -20,6 +23,7 @@ public class Memory {
 	
 	public void setCGB() {
 		wram = new byte[0x8000];
+		vram1 = new byte[0x2000];
 	}
 	
 	public void setROM(byte[] rom) {
@@ -32,6 +36,24 @@ public class Memory {
 
 	public byte read(int addr) {
 		addr &= 0xFFFF;
+		
+		if(emulator.getGlobals().bootROMEnabled) {
+			if(emulator.isCGB()) {
+				if(addr >= 0 && addr < 0x0900) {
+					if(addr >= 0x0000 && addr < 0x0100)
+						return emulator.getGlobals().bootROM[addr];
+					else if(addr >= 0x0200 && addr < 0x0900)
+						return emulator.getGlobals().bootROM[addr - 0x0100];
+					else if(addr == 0xFF50)
+						return (byte) 0xFF;
+				}
+					
+			}
+			else {
+				if(addr >= 0 && addr < 0x0100)
+					return emulator.getGlobals().bootROM[addr];
+			}
+		}
 
 		if (addr <= MemMap.Bank0.end)
 			return rom[addr];
@@ -60,7 +82,7 @@ public class Memory {
 		
 		
 		//WRAM
-		if(emulator.getGlobals().CGBMode) {
+		if(emulator.isCGB()) {
 			if(addr >= 0xC000 && addr <= 0xCFFF)
 				return (byte) (wram[addr-0xC000] & 0xFF);
 			if(addr >= 0xD000 && addr <= 0xDFFF) {
@@ -124,42 +146,54 @@ public class Memory {
 			}
 		}
 
-		// DMG LCD control
-		if (addr == 0xFF40) {
-			int cc = data & 0x80;
-			if (emulator.getGlobals().LCD_enabled != cc > 0) {
-				emulator.getGlobals().LCD_enabled = cc > 0;
-				if (!emulator.getGlobals().LCD_enabled) {
-					emulator.getGlobals().LCD_scan = 0;
-					ram[0xFF41] = (byte) ((ram[0xFF41] & 0xFC) + 1);
-				}
+		// LCD control
+		if(emulator.isCGB()) {
+			// CGB
+			byte vbk = ram[0xFF4F];
+			if(addr >= 0x8000 && addr <= 0x9FFF) {
+				if(vbk == 0x01)
+					vram1[addr-0x8000] = (byte) (data&0xFF);
 			}
 		}
-
-		if (addr == 0xFF41) {
-			ram[0xFF41] &= 0x3;
-			data &= 0xFC;
-			ram[0xFF41] |= 0x80 | data;
-			return;
-		}
-
-		if (addr == 0xFF44) {
-			ram[0xFF44] = 0;
-			return;
-		}
-
-		if (addr == 0xFF46) {
-			int st = (data & 0xFF) << 8;
-			for (int i = 0; i <= 0x9F; i++)
-				ram[0xFE00 + i] = read(st + i);
-			return;
+		else {
+			// DMG
+			if (addr == 0xFF40) {
+				int cc = data & 0x80;
+				if (emulator.getGlobals().LCD_enabled != cc > 0) {
+					emulator.getGlobals().LCD_enabled = cc > 0;
+					if (!emulator.getGlobals().LCD_enabled) {
+						emulator.getGlobals().LCD_scan = 0;
+						ram[0xFF41] = (byte) ((ram[0xFF41] & 0xFC) + 1);
+					}
+				}
+			}
+	
+			if (addr == 0xFF41) {
+				ram[0xFF41] &= 0x3;
+				data &= 0xFC;
+				ram[0xFF41] |= 0x80 | data;
+				return;
+			}
+	
+			if (addr == 0xFF44) {
+				ram[0xFF44] = 0;
+				return;
+			}
+	
+			if (addr == 0xFF46) {
+				int st = (data & 0xFF) << 8;
+				for (int i = 0; i <= 0x9F; i++)
+					ram[0xFE00 + i] = read(st + i);
+				return;
+			}
 		}
 
 		// Boot-ROM
 		if (addr == 0xFF50) {
 			System.out.println("Disabled Boot-ROM");
-			for (int i = 0; i < 256; i++)
-				rom[i] = (byte) (emulator.getGlobals().FirstROMPage[i] & 0xFF);
+			/*for (int i = 0; i < emulator.getBootromLength(); i++)
+				rom[i] = (byte) (emulator.getGlobals().FirstROMPage[i] & 0xFF);*/
+			emulator.getGlobals().bootROMEnabled = false;
 			return;
 		}
 		
@@ -186,7 +220,6 @@ public class Memory {
 	}
 
 	private void doMBC(int addr, byte data) {
-		// Cartridge Type = ROM[0x147]
 		switch (rom[0x147] & 0xFF) {
 
 		case 0: // ROM ONLY
@@ -195,8 +228,9 @@ public class Memory {
 		case 0x01: // MBC1
 		case 0x02: // MBC1+RAM
 		case 0x03: // MBC1+RAM+BATTERY
-			if (addr <= 0x1FFF)
+			if (addr <= 0x1FFF) {
 				emulator.getGlobals().RAMenabled = ((data & 0x0F) == 0xA);
+			}
 			else if (addr <= 0x3FFF) {
 				data &= 0x1F;
 				if (data == 0)
@@ -311,5 +345,15 @@ public class Memory {
 			System.err.println("NOT IMPLEMENTED MEM: " + Integer.toHexString(addr));
 			throw new IllegalArgumentException();
 		}
+	}
+	
+	public void RAMSave() {
+		if(emulator.getGlobals().gameHasLoaded)
+			CartridgeSaves.save(emulator.getGlobals().currentROMFile, emulator.getGlobals().currentROMName, cram);
+	}
+	public void RAMLoad() {
+		byte[] bytes = CartridgeSaves.load(emulator.getGlobals().currentROMFile, emulator.getGlobals().currentROMName);
+		if(bytes.length == cram.length)
+			cram = bytes;
 	}
 }
