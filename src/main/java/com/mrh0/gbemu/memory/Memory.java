@@ -15,9 +15,9 @@ public class Memory {
 
 	private Emulator emulator;
 
-	public Memory(Emulator emulator, int size) {
+	public Memory(Emulator emulator) {
 		this.emulator = emulator;
-		this.ram = new byte[size];
+		this.ram = new byte[0x10000];
 		this.cram = new byte[0x8000];
 	}
 	
@@ -47,7 +47,6 @@ public class Memory {
 					else if(addr == 0xFF50)
 						return (byte) 0xFF;
 				}
-					
 			}
 			else {
 				if(addr >= 0 && addr < 0x0100)
@@ -81,8 +80,24 @@ public class Memory {
 		}
 		
 		
-		//WRAM
+		
 		if(emulator.isCGB()) {
+			// 0xFF4F : VRAM Bank Select
+			// 0xFF50 : Set to non-zero to disable boot ROM
+			// $FF51-$FF55 : VRAM DMA
+			// $FF68-$FF69 : BG / OBJ Palettes
+			
+			/*if(addr == 0xFF4F)
+				return (byte) (emulator.isCGB() ? 0xfe : 0xff);*/
+			
+			
+			if(addr >= 0x8000 && addr <= 0x9FFF) {
+				byte vbk = ram[0xFF4F];
+				if(vbk == 0x01)
+					return (byte) (vram1[addr-0x8000]&0xFF);
+			}
+			
+			//WRAM
 			if(addr >= 0xC000 && addr <= 0xCFFF)
 				return (byte) (wram[addr-0xC000] & 0xFF);
 			if(addr >= 0xD000 && addr <= 0xDFFF) {
@@ -198,8 +213,19 @@ public class Memory {
 		}
 		
 		//CGB LCD control
-		if(addr == 0xFF55) {
-			
+		
+		
+		//WRAM
+		if(emulator.isCGB()) {
+			if(addr == 0xFF55) {
+				
+			}
+			if(addr >= 0xC000 && addr <= 0xCFFF)
+				wram[addr-0xC000] = (byte) (data & 0xFF);
+			if(addr >= 0xD000 && addr <= 0xDFFF) {
+				int bank = ram[0xFF70]&0xF9;
+				wram[addr-0xD000+(bank*0x1000)] = (byte) (data & 0xFF);
+			}
 		}
 
 		ram[addr] = data;

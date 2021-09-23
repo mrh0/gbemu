@@ -39,7 +39,7 @@ public class Emulator implements Runnable {
 		renderer = new Renderer(this, null);
 		
 		// Setup Memory:
-		memory = new Memory(this, 0x10000);
+		memory = new Memory(this);
 		memory.raw()[0xFF41] = 0x01;
 		memory.raw()[0xFF43] = 0x00;
 		// Unknown function:
@@ -146,21 +146,24 @@ public class Emulator implements Runnable {
 			windowTick(window, globals, relativePercent);
 			if (!globals.cpuEnabled)
 				continue;
-			// cpu.debug();
+			//cpu.debug();
 
 			int c = cpu.advance();
+			
 			for(int i = 0; i < c; i++)
 				sound.tickOutput();
+			
+			if(globals.doubleSpeed)
+				c+=cpu.advance();
 			
 			cycleSum += c;
 			cycles -= c;
 			while (cycles < 0) {
 				if ((time = System.nanoTime()) > ntime) {
-					ntime = time + globals.frameTime;
-					cycles = globals.frameCycles;
+					ntime = time + globals.frameTime / (globals.doubleSpeed?2:1);
+					cycles = globals.frameCycles * (globals.doubleSpeed?2:1);
 				}
 			}
-			
 		}
 	}
 	
@@ -221,12 +224,12 @@ public class Emulator implements Runnable {
 		}*/
 		globals.bootROM = bootcode;
 		
-		if(globals.CGBMode)
+		if(isCGB())
 			memory.setCGB();
-		renderer.setLCD(globals.CGBMode?new CLCD():new LCD());
+		renderer.setLCD(isCGB()?new CLCD():new LCD());
 		
 		String title = getTitle(rom);
-		String mode = (globals.universalMode?"Universal":(globals.CGBMode?"CGB":"DMG"));
+		String mode = (globals.universalMode?"Universal":(isCGB()?"CGB":"DMG"));
 		
 		globals.currentROMFile = file;
 		globals.currentROMName = title;

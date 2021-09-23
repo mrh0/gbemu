@@ -1986,12 +1986,21 @@ public class CPU {
 
 	private int stop_() {
 		pc += 2;
+		if(emulator.isCGB()) {
+			if((mem.raw()[0xFF4D]&0x01) == 1) {
+				if(globals.doubleSpeed)
+					mem.raw()[0xFF4D] = (byte) 0x80;
+				else
+					mem.raw()[0xFF4D] = 0;
+				globals.doubleSpeed = !globals.doubleSpeed;
+				System.out.println("Set double speed: " + globals.doubleSpeed);
+			}
+		}
 		return 4;
 	}
 
 	private int unused_() {
-		System.err.println("UNUSED");
-		System.exit(-1);
+		System.err.println("Unused opcode");
 		return 4;
 	}
 
