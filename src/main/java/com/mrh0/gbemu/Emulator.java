@@ -15,6 +15,7 @@ import com.mrh0.gbemu.events.IEmulationEvent;
 import com.mrh0.gbemu.io.IO;
 import com.mrh0.gbemu.io.Input;
 import com.mrh0.gbemu.lcd.LCD;
+import com.mrh0.gbemu.lcd.NullLCD;
 import com.mrh0.gbemu.lcd.color.CLCD;
 import com.mrh0.gbemu.memory.Memory;
 import com.mrh0.gbemu.sound.SoundManager;
@@ -224,8 +225,10 @@ public class Emulator implements Runnable {
 		}*/
 		globals.bootROM = bootcode;
 		
-		if(isCGB())
+		if(isCGB()) {
 			memory.setCGB();
+			cpu.setCGB();
+		}
 		renderer.setLCD(isCGB()?new CLCD():new LCD());
 		
 		String title = getTitle(rom);

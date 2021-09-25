@@ -13,12 +13,20 @@ public class CLCD implements ILCD{
 	private final Palette bg;
     private final Palette oam;
     
+    private IntQueue pixelQueue;
+    private IntQueue paletteQueue;
+    private IntQueue priorityQueue;
+    
     private byte[] pixels;
 	private final int SIZE = 160 * 144;
 	
 	public CLCD() {
 		this.bg = new Palette(0xff68);
         this.oam = new Palette(0xff6a);
+        
+        this.pixelQueue = new IntQueue(16);
+        this.paletteQueue = new IntQueue(16);
+        this.priorityQueue = new IntQueue(16);
         
         this.pixels = new byte[SIZE];
 	}
@@ -34,7 +42,57 @@ public class CLCD implements ILCD{
 	private boolean bool(int b) {
 		return b > 0;
 	}
-
+	
+	//Fifo
+	private int getPixel() {
+		return getColor(priorityQueue.dequeue(), paletteQueue.dequeue(), pixelQueue.dequeue());
+	}
+	
+	public void putPixels(int[] pixelLine, int att) {
+        for (int p : pixelLine) {
+        	pixelQueue.enqueue(p);
+            paletteQueue.enqueue(getAttPalette(att));
+            priorityQueue.enqueue(isAttPriority(att) ? 100 : -1);
+        }
+    }
+	
+    private int getColor(int priority, int palette, int color) {
+        if (priority >= 0 && priority < 10)
+            return oam.getPalette(palette)[color];
+        return bg.getPalette(palette)[color];
+    }
+    
+    public static int getColor(int c) {
+        int r = (c >> 0) & 0x1f;
+        int g = (c >> 5) & 0x1f;
+        int b = (c >> 10) & 0x1f;
+        return ((r * 8) << 16) | ((g * 8) << 8) | (b * 8);
+    }
+	
+	  // FF41 - STAT - LCDC Status (R/W)
+	  // FF42 - SCY - Scroll Y (R/W)
+	  // FF43 - SCX - Scroll X (R/W)
+	  // FF44 - LY - LCDC Y-Coordinate (R)
+	  // FF45 - LYC - LY Compare (R/W)
+	  // FF46 - DMA - DMA Transfer and Start Address (W)
+	  // FF47 - BGP - BG Palette Data (R/W) - Non CGB Mode Only
+	  // FF48 - OBP0 - Object Palette 0 Data (R/W) - Non CGB Mode Only
+	  // FF49 - OBP1 - Object Palette 1 Data (R/W) - Non CGB Mode Only
+	  // FF4A - WY - Window Y Position (R/W)
+	  // FF4B - WX - Window X Position minus 7 (R/W)
+	
+	  // Complete scan line takes 456 clks.
+	
+	  //  Mode 0 H-blank period        - 204 clks
+	  //  Mode 1 V-blank period        - 4560 clks
+	  //  Mode 2 Reading OAM           - 80 clks
+	  //  Mode 3 Reading OAM and VRAM  - 172 clks
+	  //
+	  //  Mode 2  2_____2_____2_____2_____2_____2___________________2____
+	  //  Mode 3  _33____33____33____33____33____33__________________3___
+	  //  Mode 0  ___000___000___000___000___000___000________________000
+	  //  Mode 1  ____________________________________11111111111111_____
+	
 	@Override
 	public int cycle(Emulator emulator, Renderer renderer, int cycles) {
 		/*Memory mem = emulator.getMemory();
@@ -236,13 +294,6 @@ public class CLCD implements ILCD{
 		}*/
 		return cycles;
 	}
-
-	public static int getColor(int c) {
-        int r = (c >> 0) & 0x1f;
-        int g = (c >> 5) & 0x1f;
-        int b = (c >> 10) & 0x1f;
-        return ((r * 8) << 16) | ((g * 8) << 8) | (b * 8);
-    }
 	
 	private boolean getBit(byte n, int k) {
 	    return bool((n >> k) & 0x01);
@@ -271,4 +322,69 @@ public class CLCD implements ILCD{
 	private int getTilePalette(byte b) {
 		return b & 0x07;
 	}
+	
+	
+	// LCDC
+	public boolean isBgAndWindowDisplay(Memory mem) {
+        return (mem.raw()[0xFF40] & 0x01) != 0;
+    }
+
+    public boolean isObjDisplay(Memory mem) {
+        return (mem.raw()[0xFF40] & 0x02) != 0;
+    }
+
+    public int getSpriteHeight(Memory mem) {
+        return (mem.raw()[0xFF40] & 0x04) == 0 ? 8 : 16;
+    }
+
+    public int getBgTileMapDisplay(Memory mem) {
+        return (mem.raw()[0xFF40] & 0x08) == 0 ? 0x9800 : 0x9c00;
+    }
+
+    public int getBgWindowTileData(Memory mem) {
+        return (mem.raw()[0xFF40] & 0x10) == 0 ? 0x9000 : 0x8000;
+    }
+
+    public boolean isBgWindowTileDataSigned(Memory mem) {
+        return (mem.raw()[0xFF40] & 0x10) == 0;
+    }
+
+    public boolean isWindowDisplay(Memory mem) {
+        return (mem.raw()[0xFF40] & 0x20) != 0;
+    }
+
+    public int getWindowTileMapDisplay(Memory mem) {
+        return (mem.raw()[0xFF40] & 0x40) == 0 ? 0x9800 : 0x9c00;
+    }
+
+    public boolean isLcdEnabled(Memory mem) {
+        return (mem.raw()[0xFF40] & 0x80) != 0;
+    }
+    
+    //Attribute
+    public boolean isAttPriority(int att) {
+        return (att & (1 << 7)) != 0;
+    }
+
+    public boolean isAttYflip(int att) {
+        return (att & (1 << 6)) != 0;
+    }
+
+    public boolean isAttXflip(int att) {
+        return (att & (1 << 5)) != 0;
+    }
+
+    /*public GpuRegister getDmgPalette() {
+        return (att & (1 << 4)) == 0 ? GpuRegister.OBP0 : GpuRegister.OBP1;
+    }*/
+
+    public int getAttBank(int att) {
+        return (att & (1 << 3)) == 0 ? 0 : 1;
+    }
+
+    public int getAttPalette(int att) {
+        return att & 0x07;
+    }
+    
+    
 }

@@ -2086,4 +2086,8 @@ public class CPU {
 
 		return 20;
 	}
+	
+	public void setCGB() {
+		//reg[A] = 0x11;
+	}
 }

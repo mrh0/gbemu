@@ -14,6 +14,8 @@ public class Memory {
 	private byte[] vram1;
 
 	private Emulator emulator;
+	
+	private int FF6C = 0xfe;
 
 	public Memory(Emulator emulator) {
 		this.emulator = emulator;
@@ -24,6 +26,9 @@ public class Memory {
 	public void setCGB() {
 		wram = new byte[0x8000];
 		vram1 = new byte[0x2000];
+		
+		ram[0xFF74] = (byte) 0xFF;
+		ram[0xFF75] = (byte) 0x8F;
 	}
 	
 	public void setROM(byte[] rom) {
@@ -89,7 +94,8 @@ public class Memory {
 			
 			/*if(addr == 0xFF4F)
 				return (byte) (emulator.isCGB() ? 0xfe : 0xff);*/
-			
+			if(addr == 0xFF6C)
+				return (byte) (FF6C&0xFF);
 			
 			if(addr >= 0x8000 && addr <= 0x9FFF) {
 				byte vbk = ram[0xFF4F];
@@ -164,8 +170,15 @@ public class Memory {
 		// LCD control
 		if(emulator.isCGB()) {
 			// CGB
-			byte vbk = ram[0xFF4F];
+			
+			if(addr == 0xFF6C)
+				FF6C = (0xFE | (data&1))&0xFF;
+			if(addr == 0xFF75)
+				ram[0xFF75] = (byte) (0x8f | (data & 0b01110000));
+			
+			
 			if(addr >= 0x8000 && addr <= 0x9FFF) {
+				byte vbk = ram[0xFF4F];
 				if(vbk == 0x01)
 					vram1[addr-0x8000] = (byte) (data&0xFF);
 			}

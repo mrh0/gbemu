@@ -120,7 +120,7 @@ public class LCD implements ILCD {
 					bgTileMapAddr += (~~(y / 8)) * 32;
 					int tileOffset = baseTileOffset + (y & 7) * 2;
 
-					int[] pix = grabTile(mem, mem.raw()[bgTileMapAddr + x]&0xFF, tileOffset, tileSigned);
+					int[] pix = getTile(mem, mem.raw()[bgTileMapAddr + x]&0xFF, tileOffset, tileSigned);
 
 					for (int i = 0; i < bgStopX; i++) {
 						pixels[dpy + i] = (byte) bgpalette[pix[xoff++]];
@@ -128,7 +128,7 @@ public class LCD implements ILCD {
 						if (xoff == 8) {
 							x = (x + 1) & 0x1F;
 
-							pix = grabTile(mem, mem.raw()[bgTileMapAddr + x]&0xFF, tileOffset, tileSigned);
+							pix = getTile(mem, mem.raw()[bgTileMapAddr + x]&0xFF, tileOffset, tileSigned);
 							xoff = 0;
 						}
 
@@ -144,12 +144,12 @@ public class LCD implements ILCD {
 					wdTileMapAddr += (~~(y / 8)) * 32;
 					int tileOffset = baseTileOffset + (y & 7) * 2;
 
-					int[] pix = grabTile(mem, mem.raw()[wdTileMapAddr]&0xFF, tileOffset, tileSigned);
+					int[] pix = getTile(mem, mem.raw()[wdTileMapAddr]&0xFF, tileOffset, tileSigned);
 
 					for (int i = Math.max(0, bgStopX); i < 160; i++) {
 						pixels[dpy + i] = (byte) bgpalette[pix[xoff++]];
 						if (xoff == 8) {
-							pix = grabTile(mem, mem.raw()[++wdTileMapAddr]&0xFF, tileOffset, tileSigned);
+							pix = getTile(mem, mem.raw()[++wdTileMapAddr]&0xFF, tileOffset, tileSigned);
 							xoff = 0;
 						}
 					}
@@ -259,15 +259,16 @@ public class LCD implements ILCD {
 		return cycles;
 	}
 	
-	private int[] grabTile(Memory mem, int n, int offset, boolean tileSigned) {
+	private int[] getTile(Memory mem, int n, int offset, boolean tileSigned) {
 		int tileptr;
-		if (tileSigned && n > 127) {
+		if (tileSigned && n > 127)
 			tileptr = offset + (n - 256) * 16;
-		} else {
+		else
 			tileptr = offset + n * 16;
-		}
+		
 		int d1 = mem.raw()[tileptr]&0xFF;
 		int d2 = mem.raw()[tileptr + 1]&0xFF;
+		
 		return pixelDecoder[d1][d2];
 	}
 }
